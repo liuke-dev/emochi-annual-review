@@ -1,0 +1,19 @@
+/* A dependency-free equirectangular panorama viewer. The camera can turn a full 360°.
+   Textures are static artwork; characters are projected separately in the same yaw coordinate system. */
+window.StellarPanorama = class {
+ constructor(canvas){
+  this.canvas=canvas;this.yaw=0;this.pitch=0;this.ready=false;this.loadToken=0;
+  const gl=canvas.getContext('webgl',{alpha:false,antialias:false,powerPreference:'low-power'});
+  if(!gl)throw new Error('WebGL unavailable');this.gl=gl;
+  const vertex='attribute vec2 position;varying vec2 uv;void main(){uv=position*.5+.5;gl_Position=vec4(position,0.,1.);}';
+  const fragment='precision mediump float;varying vec2 uv;uniform sampler2D panorama;uniform float yaw;uniform float pitch;uniform float aspect;void main(){vec2 p=(uv*2.-1.)*0.931596;vec3 r=normalize(vec3(p.x,p.y/aspect,1.));r=vec3(r.x,cos(pitch)*r.y+sin(pitch)*r.z,-sin(pitch)*r.y+cos(pitch)*r.z);r=vec3(cos(yaw)*r.x+sin(yaw)*r.z,r.y,-sin(yaw)*r.x+cos(yaw)*r.z);vec2 st=vec2(atan(r.x,r.z)/6.2831853+.5,asin(clamp(r.y,-1.,1.))/3.14159265+.5);gl_FragColor=texture2D(panorama,st);}';
+  const compile=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){gl.deleteShader(s);throw new Error('Panorama shader unavailable');}return s;};
+  const vs=compile(gl.VERTEX_SHADER,vertex),fs=compile(gl.FRAGMENT_SHADER,fragment),program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error('Panorama program unavailable');gl.useProgram(program);this.program=program;
+  const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);const attr=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(attr);gl.vertexAttribPointer(attr,2,gl.FLOAT,false,0,0);
+  this.uniforms={yaw:gl.getUniformLocation(program,'yaw'),pitch:gl.getUniformLocation(program,'pitch'),aspect:gl.getUniformLocation(program,'aspect')};this.texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.uniform1i(gl.getUniformLocation(program,'panorama'),0);
+  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.ready=false;canvas.dispatchEvent(new CustomEvent('panorama-unavailable'));});
+ }
+ load(url){const token=++this.loadToken;this.ready=false;return new Promise((resolve,reject)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>{if(token!==this.loadToken)return resolve(false);try{const gl=this.gl;gl.bindTexture(gl.TEXTURE_2D,this.texture);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);this.ready=true;this.draw();resolve(true);}catch(e){reject(e);}};img.onerror=()=>reject(new Error('Panorama image unavailable'));img.src=url;});}
+ setCamera(yaw,pitch=0){this.yaw=yaw;this.pitch=Math.max(-.6,Math.min(.6,pitch));this.draw();}
+ draw(){if(!this.ready)return;const c=this.canvas,w=c.clientWidth,h=c.clientHeight;if(!w||!h)return;const d=Math.min(window.devicePixelRatio||1,1.5);if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d);}const gl=this.gl;gl.viewport(0,0,c.width,c.height);gl.useProgram(this.program);gl.uniform1f(this.uniforms.yaw,this.yaw);gl.uniform1f(this.uniforms.pitch,this.pitch);gl.uniform1f(this.uniforms.aspect,w/h);gl.drawArrays(gl.TRIANGLES,0,6);}
+};

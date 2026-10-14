@@ -1,0 +1,35 @@
+Tool: built-in image_gen.imagegen (no CLI/API fallback)
+Mode: new image generation
+Generated: 2026-10-14
+Inspection: all three outputs visually inspected; no text/UI; four equal panels in both atlases.
+Usage: image files are in dist/assets; original generated files retained.
+nebula.png: 1672 x 941
+portraits.png: 1774 x 887
+worlds.png: 1774 x 887
+Atlas order: gothic, romantic, fantasy, sci-fi. CSS background-size: 400% 100%; positions: 0%, 33.333333%, 66.666667%, 100%.
+
+## nebula.png
+Use case: stylized-concept. Asset type: cinematic H5 website hero background, ultra wide landscape 16:9. Primary request: dreamy futuristic deep space starfield, very deep midnight navy and restrained violet, a luminous lilac sweeping nebula curls into a spiral galaxy disk on the right half of the composition. The left half has deep dark negative space reserved for a large white headline, no bright objects on left. Sparse exquisitely small stars, delicate cosmic dust, a light lavender blue halo, subtle volumetric light. Premium high-end film concept art, detailed yet serene, emotional and mysterious, sophisticated and soft, layered depth. Main luminous cluster at x=72%, y=47%, galaxy flows diagonally from lower right to upper center. No planets, no spacecraft, no people, no lettering, no captions, no logos, no user interface, no watermarks, no text.
+
+## portraits.png
+Use case: stylized-concept. Asset type: character portrait sprite atlas for a cinematic fantasy chatbot website. Create EXACTLY FOUR equal-width vertical portrait panels laid side by side in a single horizontal row, 4 columns x 1 row, overall landscape canvas 2:1. All panels equal size, no gaps, no borders, no labels, each portrait centered in its quarter. Four distinct clearly ADULT characters age 25-35, framed head and shoulders, beautiful polished premium fantasy game illustration with refined semi-realistic rendering and painterly cinematic detail. Panel 1 far left: elegant adult male gothic vampire, shoulder-length silver hair, pale skin, dark Victorian black coat, silver chain, intense yet gentle gaze, shadowy amethyst gothic background. Panel 2: handsome warm adult dark-haired man, soft natural hair, cream shirt, tender smile, romantic golden pink evening bokeh environment. Panel 3: ethereal beautiful clearly adult female elf, long platinum pale hair, pointed ears, intricate sage silver gown and small woodland silver ornaments, calm kind gaze, teal moonlit enchanted forest background. Panel 4 far right: confident beautiful adult dark-haired female astronaut, short sleek hair, black violet futuristic high collar flight suit, cyan instrument reflections, navy futuristic observatory background. Consistent head scale and eye height across all four panels, all look toward the viewer, preserve their individual colors, non-sexual portraits. No text, no logos, no watermarks, no buttons or UI.
+
+## worlds.png
+Use case: stylized-concept. Asset type: scenic environmental sprite atlas for premium immersive fantasy website. Create EXACTLY FOUR equal-width vertical environment panels side by side in one horizontal row (4 columns x 1 row), overall landscape 2:1 canvas. Every panel is a complete portrait composition, all equal width, no gaps, no borders, no text. Panel 1 far left: dark gothic moonlit castle towering over a quiet lake, gothic architecture with silver spires, mist, tiny violet glowing windows, purple blue luminous crescent moon, dreamlike midnight atmosphere. Panel 2: magical pink and lavender romantic moonlit ocean, distant rose island, an elegant pale crescent moon, floating rose petals, shimmering reflections across tranquil water, warm heartful poetic beauty. Panel 3: glowing emerald teal fantasy forest, ancient trees framing a giant luminous pale moon in the sky, luminous bioluminescent flowers, magical fireflies, still crystalline pool with beautiful reflection, dreamlike depth. Panel 4 far right: breathtaking blue violet futuristic orbital city overlooking planet Earth, delicate luminous towers and curved observatory structures, cyan lit walkways, nebula and stars across space, serene science fiction splendor. Cinematic extremely polished game concept art, rich nuanced color, atmospheric depth, ultra detailed photoreal semi-painterly environments. No people or humanoids, no letters, no text, no labels, no user interface, no logos, no watermark.
+
+
+
+## Animated memory scene demos
+Tool: local ffmpeg (sequential, encoder and filter threads=1).
+Source: worlds.png, one equal atlas panel per video, in unchanged atlas order.
+Outputs: dist/assets/memory-0.mp4 through memory-3.mp4.
+All four are 12.000-second silent H.264 Main profile, yuv420p, 540x720, 24fps, faststart MP4 files.
+Motion: slow continuous sinusoidal zoom and pan; one full movement cycle over 288 frames.
+These clips animate STILL GENERATED SCENES. They are visual demo loops, not generated talking-person video or recordings of a bot speaking.
+Validation: ffprobe confirms the codec, pixel format, 12-second duration, frame rate and dimensions; sample frame visually inspected.
+Sizes in bytes (0..3): 444392, 654273, 772073, 649964.
+Original PNGs retained unchanged; approximate PNG sizes: nebula 2.1MB, portraits 2.7MB, worlds 3.2MB.
+
+
+## Dedicated panoramic environments
+Four independent images were generated with built-in image_gen.imagegen as 2:1 full 360x180 equirectangular panoramas. Full prompts and projection notes: source-assets/panorama-prompts.txt. PNG originals retained as source-assets/pano-0.png through pano-3.png. Runtime textures are dist/assets/pano-0.webp through pano-3.webp (quality 82, no resize/crop). All dimensions verified at 1774x887; runtime asset sizes 204782, 248548, 400916, 291874 bytes. Rendered seam and pole quality should be checked in the final WebGL viewer; natural-language image generation does not guarantee mathematically identical edge pixels.
