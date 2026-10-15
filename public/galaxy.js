@@ -9,6 +9,21 @@ const normal=()=>Math.sqrt(-2*Math.log(Math.max(.00001,random())))*Math.cos(TAU*
 const anchorPolar=[[3.45,2.57],[3.76,.31],[2.84,4.18],[3.5,5.52],[4.1,3.56],[3.5,1.40]];
 const anchorXYZ=anchorPolar.map(([r,a],i)=>[Math.cos(a)*r,.08+(i%2)*.12,Math.sin(a)*r]);
 const themes=[[1,.54,.76],[.62,.70,1],[.72,.42,1],[.40,.86,1],[.46,.52,.65],[.53,.58,.56]];
+function galaxyColor(value,fallback){
+ if(Array.isArray(value)&&value.length>=3&&value.slice(0,3).every(Number.isFinite)){const scale=value.slice(0,3).some(v=>v>1)?255:1;return value.slice(0,3).map(v=>clamp(v/scale,0,1));}
+ if(Number.isInteger(value)&&value>=0&&value<=0xffffff)return[(value>>16)/255,((value>>8)&255)/255,(value&255)/255];
+ if(typeof value==='string'){
+  const hex=value.trim().replace(/^#/,'');
+  if(/^(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex)){const s=hex.length<5?hex.slice(0,3).split('').map(v=>v+v).join(''):hex.slice(0,6);return[0,2,4].map(i=>parseInt(s.slice(i,i+2),16)/255);}
+  const rgb=value.trim().match(/^rgba?\(([^)]+)\)$/i);
+  if(rgb){const parts=rgb[1].trim().split(/[\s,/]+/).slice(0,3);if(parts.length===3&&parts.every(v=>/^[-+]?(?:\d+\.?\d*|\.\d+)%?$/.test(v)))return parts.map(v=>clamp(parseFloat(v)/(v.endsWith('%')?100:255),0,1));}
+ }
+ return fallback.slice();
+}
+function galaxyAnchors(count){
+ const angle=Math.PI*(3-Math.sqrt(5));
+ return Array.from({length:count},(_,i)=>{const r=count===1?3.25:2+1.95*Math.sqrt((i+.5)/count),a=2.57+i*angle;return[Math.cos(a)*r,.1+.1*Math.sin(i*angle),Math.sin(a)*r];});
+}
 const NEAR=.35,MIN_DISTANCE=4.5,MAX_DISTANCE=28;
 const normalizeQ=q=>{const n=Math.hypot(...q);if(n<1e-12)return[0,0,0,1];return Math.abs(n-1)<1e-12?q.slice():q.map(v=>v/n);};
 const multiplyQ=(a,b)=>[a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
@@ -17,15 +32,22 @@ const cameraQ=(yaw,pitch)=>normalizeQ(multiplyQ(axisQ(1,0,0,pitch),axisQ(0,1,0,y
 function fromToQ(a,b){const na=Math.hypot(...a),nb=Math.hypot(...b);if(na<1e-12||nb<1e-12)return[0,0,0,1];a=a.map(v=>v/na);b=b.map(v=>v/nb);const dot=clamp(a[0]*b[0]+a[1]*b[1]+a[2]*b[2],-1,1);if(dot<-.999999){const helper=Math.abs(a[0])<.8?[1,0,0]:[0,1,0];return axisQ(a[1]*helper[2]-a[2]*helper[1],a[2]*helper[0]-a[0]*helper[2],a[0]*helper[1]-a[1]*helper[0],Math.PI);}return normalizeQ([a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0],1+dot]);}
 function slerpQ(a,b,t){let dot=a.reduce((sum,v,i)=>sum+v*b[i],0);if(dot<0){b=b.map(v=>-v);dot=-dot;}if(dot>.9995)return normalizeQ(a.map((v,i)=>v+(b[i]-v)*t));const angle=Math.acos(clamp(dot,-1,1)),den=Math.sin(angle),x=Math.sin((1-t)*angle)/den,y=Math.sin(t*angle)/den;return normalizeQ(a.map((v,i)=>v*x+b[i]*y));}
 class StellarGalaxy{
- constructor(canvas,stage,{onPose,onDragEnd,onZoom,onAutoChange,onFallback}={}){
+ constructor(canvas,stage,{onPose,onDragEnd,onZoom,onAutoChange,onFallback,galaxies}={}){
   this.canvas=canvas;this.stage=stage;this.onPose=onPose;this.onDragEnd=onDragEnd;this.onZoom=onZoom;this.onAutoChange=onAutoChange;this.onFallback=onFallback;
+  this._demoLayout=galaxies===undefined;
+  const definitions=this._demoLayout?anchorXYZ.map((_,i)=>({id:'demo-'+i,color:themes[i],lit:i<4})):Array.isArray(galaxies)?galaxies:[];
+  this._galaxies=definitions.map((g,i)=>({id:String(g?.id??i),lit:g?.lit===true,color:galaxyColor(g?.color,themes[i%themes.length])}));
+  this._anchors=this._demoLayout?anchorXYZ.map(p=>p.slice()):galaxyAnchors(this._galaxies.length);
+  let rank=0;this._ignitionRanks=this._galaxies.map(g=>g.lit?rank++:-1);
+  this._ignitionDuration=this._demoLayout?.32:rank<=1?1:Math.min(.4,2/(rank+2));
+  this._ignitionStep=this._demoLayout?.18:rank>1?(1-this._ignitionDuration)/(rank-1):0;
   this.yaw=.28;this.pitch=.71;this._orientation=cameraQ(this.yaw,this.pitch);this._targetOrientation=this._orientation.slice();this._matrix=new Float32Array(9);this._matrixDirty=true;this._distance=10.5;this._targetLogDistance=Math.log(this._distance);this.ignition=1;this.flat=false;this.active=true;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.auto=!this.reduced;this.pointers=new Map();this._captures=new Set();this._angularVelocity=[0,0,0];this._drag=null;this._gestureMoved=false;this._pinchSpan=0;this._pinchDirect=false;this._focus=null;this._dirty=true;this._poseDirty=true;this._lastZoom=null;this.last=null;this._lastDraw=-Infinity;this.width=1;this.height=1;this.quality=11000;
   const gl=canvas.getContext('webgl',{alpha:true,antialias:false,depth:false,powerPreference:'low-power',premultipliedAlpha:true});if(!gl)throw new Error('WebGL unavailable');this.gl=gl;
-  const vert=`attribute vec3 aPosition;attribute vec4 aColor;attribute float aSize;attribute float aGroup;uniform vec2 uResolution;uniform mat3 uRotationMatrix;uniform float uDistance;uniform float uScale;uniform float uPixelRatio;uniform mediump float uHalo;uniform float uTime;uniform float uIntensity;uniform float uIgnition;varying mediump vec4 vColor;void main(){vec3 p=uRotationMatrix*aPosition;float depth=uDistance-p.z;if(depth<=.35){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;vColor=vec4(0.);return;}float k=10.5/depth;gl_Position=vec4(p.x*uScale*k*2.0/uResolution.x,p.y*uScale*k*2.0/uResolution.y,0.,1.);float phase=aGroup>.5?clamp((uIgnition-(aGroup-1.)*.18)/.32,0.,1.):1.;float glow=mix(.05,1.,smoothstep(0.,1.,phase));float pulse=sin(phase*3.14159265);gl_PointSize=clamp(aSize*k*uPixelRatio*uHalo*(1.+pulse*.28),.8,96.);float twinkle=.88+.12*sin(uTime*.65+aPosition.x*5.+aPosition.z*9.);vColor=vec4(aColor.rgb*(1.+pulse*.35),aColor.a*twinkle*uIntensity*glow);}`;
+  const vert=`attribute vec3 aPosition;attribute vec4 aColor;attribute float aSize;attribute float aGroup;uniform vec2 uResolution;uniform mat3 uRotationMatrix;uniform float uDistance;uniform float uScale;uniform float uPixelRatio;uniform mediump float uHalo;uniform float uTime;uniform float uIntensity;uniform float uIgnition;uniform float uIgnitionStep;uniform float uIgnitionDuration;varying mediump vec4 vColor;void main(){vec3 p=uRotationMatrix*aPosition;float depth=uDistance-p.z;if(depth<=.35){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;vColor=vec4(0.);return;}float k=10.5/depth;gl_Position=vec4(p.x*uScale*k*2.0/uResolution.x,p.y*uScale*k*2.0/uResolution.y,0.,1.);float phase=aGroup>.5?(uIgnition>=1.?1.:clamp((uIgnition-(aGroup-1.)*uIgnitionStep)/uIgnitionDuration,0.,1.)):1.;float glow=mix(.05,1.,smoothstep(0.,1.,phase));float pulse=sin(phase*3.14159265);gl_PointSize=clamp(aSize*k*uPixelRatio*uHalo*(1.+pulse*.28),.8,96.);float twinkle=.88+.12*sin(uTime*.65+aPosition.x*5.+aPosition.z*9.);vColor=vec4(aColor.rgb*(1.+pulse*.35),aColor.a*twinkle*uIntensity*glow);}`;
   const frag=`precision mediump float;varying mediump vec4 vColor;uniform mediump float uHalo;void main(){vec2 uv=gl_PointCoord-.5;float d=length(uv)*2.;if(d>1.)discard;float light=exp(-d*d*(uHalo>1.5?4.5:6.5));float core=pow(max(0.,1.-d),5.);float alpha=vColor.a*(uHalo>1.5?.055:1.)*light;gl_FragColor=vec4(vColor.rgb*(1.+core*.4),alpha);}`;
   const compile=(type,src)=>{const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){const info=gl.getShaderInfoLog(sh);gl.deleteShader(sh);throw new Error('Galaxy shader unavailable: '+info);}return sh;};
   const vs=compile(gl.VERTEX_SHADER,vert),fs=compile(gl.FRAGMENT_SHADER,frag);this.program=gl.createProgram();gl.attachShader(this.program,vs);gl.attachShader(this.program,fs);gl.linkProgram(this.program);gl.deleteShader(vs);gl.deleteShader(fs);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw new Error('Galaxy program unavailable: '+gl.getProgramInfoLog(this.program));gl.useProgram(this.program);
-  this.uniforms={};['Resolution','RotationMatrix','Distance','Scale','PixelRatio','Halo','Time','Intensity','Ignition'].forEach(n=>this.uniforms[n]=gl.getUniformLocation(this.program,'u'+n));
+  this.uniforms={};['Resolution','RotationMatrix','Distance','Scale','PixelRatio','Halo','Time','Intensity','Ignition','IgnitionStep','IgnitionDuration'].forEach(n=>this.uniforms[n]=gl.getUniformLocation(this.program,'u'+n));
   this.buildCloud();gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.disable(gl.DEPTH_TEST);gl.clearColor(0,0,0,0);
   this.resize();this.bindInput();this.tick=this.tick.bind(this);this.raf=requestAnimationFrame(this.tick);
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.setActive(false);cancelAnimationFrame(this.raf);this.onFallback?.();});
@@ -49,7 +71,9 @@ class StellarGalaxy{
    for(let j=0;j<32;j++)add(cx+normal()*.10,normal()*.045,cz+normal()*.1,c,.24+random()*.25,1+random()*2.6);
   }
   // Each genre is a small satellite galaxy with its own luminous centre and spiral.
-  anchorXYZ.forEach((p,i)=>{const lit=i<4;for(let j=0;j<(lit?620:150);j++){const r=Math.pow(random(),.75)*(lit?.68:.25),a=(j%2)*Math.PI+Math.sqrt(r)*9+normal()*.15;const c=themes[i];add(p[0]+Math.cos(a)*r,p[1]+normal()*.018,p[2]+Math.sin(a)*r,c,lit?.40:.13,.7+random()*1.6,lit?i+1:0);}add(p[0],p[1],p[2],themes[i],lit?.9:.3,lit?22:8,lit?i+1:0);});
+  const requested=this._galaxies.reduce((sum,g)=>sum+(g.lit?620:150),0),budget=this._demoLayout?1:Math.min(1,4200/Math.max(1,requested));
+  const spread=this._demoLayout?1:Math.min(1,Math.sqrt(6/Math.max(1,this._galaxies.length)));
+  this._anchors.forEach((p,i)=>{const {lit,color}=this._galaxies[i],group=lit?this._ignitionRanks[i]+1:this._demoLayout?0:-i-1,stars=Math.max(1,Math.floor((lit?620:150)*budget));for(let j=0;j<stars;j++){const r=Math.pow(random(),.75)*(lit?.68:.25)*spread,a=(j%2)*Math.PI+Math.sqrt(r)*9+normal()*.15;add(p[0]+Math.cos(a)*r,p[1]+normal()*.018,p[2]+Math.sin(a)*r,color,lit?.40:this._demoLayout?.13:.06,.7+random()*1.6,group);}add(p[0],p[1],p[2],color,lit?.9:this._demoLayout?.3:.12,lit?22:this._demoLayout?8:5,group);});
   // Sparse near and far stars provide parallax without washing out the sky.
   for(let i=0;i<300;i++){const a=random()*TAU,r=3+random()*5;add(Math.cos(a)*r,normal()*2.2,Math.sin(a)*r,[.64+random()*.3,.72+random()*.25,1],.2+random()*.5,.6+random()*2.6);}
   add(0,0,0,[1,.85,.66],.45,24);add(0,0,0,[1,.64,.57],.16,60);
@@ -88,13 +112,13 @@ class StellarGalaxy{
   this._dirty=this._poseDirty=true;
  }
  project(index){
-  const anchor=anchorXYZ[index];
+  const anchor=this._anchors[index];
   if(!anchor||!this.width||!this.height)return{x:50,y:50,depth:0,scale:1,visible:false};
   const [xx,yy,z]=this._transform(anchor),depth=this._distance-z,k=10.5/Math.max(NEAR,depth);
   const x=(.5+xx*this.scale*k/this.width)*100,y=(.5-yy*this.scale*k/this.height)*100;
   return{x,y,depth:z,scale:clamp(k,.75,1.25),visible:depth>NEAR&&x>=0&&x<=100&&y>=0&&y<=100};
  }
- ignitionAt(index){if(index>3)return 1;return clamp((this.ignition-index*.18)/.32,0,1);}
+ ignitionAt(index){const rank=this._ignitionRanks[index];if(rank===undefined)return 0;if(rank<0)return this._demoLayout?1:0;if(this.ignition>=1)return 1;return clamp((this.ignition-rank*this._ignitionStep)/this._ignitionDuration,0,1);}
  setIgnition(value){const next=clamp(value,0,1);if(next===this.ignition)return;this.ignition=next;this._dirty=this._poseDirty=true;}
  getPose(){return{orientation:this._orientation.slice(),distance:this._distance,auto:this.auto};}
  setPose(pose){
@@ -132,7 +156,7 @@ class StellarGalaxy{
   this._dirty=this._poseDirty=true;
  }
  focus(index){
-  const anchor=anchorXYZ[index];if(!anchor)return;
+  const anchor=this._anchors[index];if(!anchor)return;
   this._clearInput(false);this._cancelMotion();this.setAuto(false);
   const viewAnchor=this._transform(anchor),delta=fromToQ(viewAnchor,[0,0,1]);
   this._focus={from:this._orientation.slice(),to:normalizeQ(multiplyQ(delta,this._orientation)),fromDistance:this._distance,toDistance:Math.max(Math.hypot(...anchor)+NEAR+.12,clamp(this._distance*.88,MIN_DISTANCE,MAX_DISTANCE)),elapsed:0,duration:.30};
@@ -202,7 +226,7 @@ class StellarGalaxy{
  draw(t){
   if(!this.active||!this.width||!this.height)return;
   const g=this.gl,u=this.uniforms;this._updateMatrix();
-  g.clear(g.COLOR_BUFFER_BIT);g.useProgram(this.program);g.uniform2f(u.Resolution,this.width,this.height);g.uniformMatrix3fv(u.RotationMatrix,false,this._matrix);g.uniform1f(u.Distance,this._distance);g.uniform1f(u.Scale,this.scale);g.uniform1f(u.PixelRatio,this.dpr*(this.width<600?.8:1));g.uniform1f(u.Intensity,this.width<600?.72:1);g.uniform1f(u.Ignition,this.ignition);g.uniform1f(u.Time,this.reduced?0:t*.001);g.uniform1f(u.Halo,1);g.drawArrays(g.POINTS,0,this.count);g.uniform1f(u.Halo,3.8);g.drawArrays(g.POINTS,0,this.count);
+  g.clear(g.COLOR_BUFFER_BIT);g.useProgram(this.program);g.uniform2f(u.Resolution,this.width,this.height);g.uniformMatrix3fv(u.RotationMatrix,false,this._matrix);g.uniform1f(u.Distance,this._distance);g.uniform1f(u.Scale,this.scale);g.uniform1f(u.PixelRatio,this.dpr*(this.width<600?.8:1));g.uniform1f(u.Intensity,this.width<600?.72:1);g.uniform1f(u.Ignition,this.ignition);g.uniform1f(u.IgnitionStep,this._ignitionStep);g.uniform1f(u.IgnitionDuration,this._ignitionDuration);g.uniform1f(u.Time,this.reduced?0:t*.001);g.uniform1f(u.Halo,1);g.drawArrays(g.POINTS,0,this.count);g.uniform1f(u.Halo,3.8);g.drawArrays(g.POINTS,0,this.count);
  }
  tick(t){
   if(document.hidden||!this.active){this.last=null;this.raf=requestAnimationFrame(this.tick);return;}

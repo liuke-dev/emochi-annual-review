@@ -1,6 +1,10 @@
+# Current live integration
+
+Live responses are normalized by server/annual-data.js. No real user data is bundled in static assets. See LIVE-INTEGRATION.md for the current contract. The original demo contract and previous iteration notes below are retained as history; fixed galaxy counts and single-clip media assumptions no longer apply to the live mode.
+
 # 年度星际回忆 · 数据接入说明
 
-当前页面读取 `dist/data.js` 中的 `window.MEMORY_DATA`。本版为 **2026 年演示数据**；人物、统计数字、对话和回忆情节均为虚构。当前日期尚未到年底，示例中的全年时段及后续日期仅用于展示年终体验，不表示已经发生。
+当前页面读取 `public/data.js` 中的 `window.MEMORY_DATA`。本版为 **2026 年演示数据**；人物、统计数字、对话和回忆情节均为虚构。当前日期尚未到年底，示例中的全年时段及后续日期仅用于展示年终体验，不表示已经发生。
 
 ## 核心字段
 
@@ -63,7 +67,7 @@
 
 ## 场景背景音乐
 
-背景音乐由 `dist/music.js` 的固定映射读取 `assets/music/{scene}.mp3`，不从 `MEMORY_DATA` 拉取，也没有新增已接线的 `musicUrl` 数据字段。当前支持 `intro`、`galaxy`、`romance`、`fantasy`、`dark`、`scifi` 六个 scene；其中四个主题 scene 与 `galaxies[].id` 一致。新增风格前需同步播放器映射与媒体文件，不能只修改数据中的星系 ID。片段来源和截取时间见 `MUSIC-CUES.md`。
+背景音乐由 `public/music.js` 的固定映射读取 `assets/music/{scene}.mp3`，不从 `MEMORY_DATA` 拉取，也没有新增已接线的 `musicUrl` 数据字段。当前支持 `intro`、`galaxy`、`romance`、`fantasy`、`dark`、`scifi` 六个 scene；其中四个主题 scene 与 `galaxies[].id` 一致。新增风格前需同步播放器映射与媒体文件，不能只修改数据中的星系 ID。片段来源和截取时间见 `MUSIC-CUES.md`。
 
 `introAudioUrls` 仍只指五段宇航员播报，与背景音乐分开。替换用户真实统计播报时，不需要改变背景音乐片段；播报长度决定开场结束时机，不能把配乐完整时长当作开场倒计时。
 

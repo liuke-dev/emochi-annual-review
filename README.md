@@ -1,6 +1,6 @@
 # 星间来信 · 2026 年度宇宙
 
-一个可部署的移动端年度聊天回忆 H5。纯 HTML、CSS、JavaScript，无构建依赖。人物、数字、文字与回忆媒体均为演示素材；当前背景音乐从用户提供的三份音频中选取片段。
+一个可部署的移动端年度聊天回忆 H5。H5 前端配合 Sites 官方服务端代理。人物、数字、文字与回忆媒体均为演示素材；当前背景音乐从用户提供的三份音频中选取片段。
 
 ## 体验路径
 
@@ -13,24 +13,24 @@
 
 ## 本地预览
 
-在本目录执行 `python3 -m http.server 4173 --directory dist`，浏览器打开 `http://localhost:4173`。
+在本目录执行 `npm run dev`，浏览器打开 `http://localhost:5173/index.html?demo=1`。
 
-部署时上传整个 `dist/` 目录。所有运行时资产随站点提供，无第三方字体、脚本或图片请求。视频按需加载。浏览器合成语音仅在预制开场音频不可用时回退；设备差异可能影响回退声音。
+私人站点需运行 npm run build；DataSage 共享包按 LIVE-INTEGRATION.md 导出。所有运行时资产随站点提供，无第三方字体、脚本或图片请求。视频按需加载。浏览器合成语音仅在预制开场音频不可用时回退；设备差异可能影响回退声音。
 
 ## 文件
 
-- `dist/index.html`：页面结构。
-- `dist/style.css`：桌面与手机布局，动画及降动效支持。
-- `dist/app.js`：导航、媒体交互、收藏、下载与星际开场。
-- `dist/panorama.js`：WebGL 等距柱状 360° 环境渲染。
-- `dist/galaxy.js`：原创立体银河粒子、相机投影、惯性拖拽与缩放。
-- `dist/flight.js`：连续星云体积隧道、速度衰减、透明消散与主星系衔接。
-- `dist/music.js`：双音频元素流式播放器、场景选曲、交叉渐变、压低音量与后台暂停。
-- `dist/mobile.css`：手机竖屏构图；桌面以宽 430px、高不超过 900px 的手机画框呈现。
-- `dist/assets/music/`：当前使用的 6 个场景配乐片段，共约 11.84 MB；最大文件约 4.07 MB。
-- `dist/assets/stellar-ambient.mp3`：旧版 72 秒原创配乐，保留为历史素材，当前不再默认播放。
-- `dist/data.js`：可替换的示例数据。
-- `dist/assets/`：优化后的图片、全景、MP3 与 MP4。
+- `public/index.html`：页面结构。
+- `public/style.css`：桌面与手机布局，动画及降动效支持。
+- `public/app.js`：导航、媒体交互、收藏、下载与星际开场。
+- `public/panorama.js`：WebGL 等距柱状 360° 环境渲染。
+- `public/galaxy.js`：原创立体银河粒子、相机投影、惯性拖拽与缩放。
+- `public/flight.js`：连续星云体积隧道、速度衰减、透明消散与主星系衔接。
+- `public/music.js`：双音频元素流式播放器、场景选曲、交叉渐变、压低音量与后台暂停。
+- `public/mobile.css`：手机竖屏构图；桌面以宽 430px、高不超过 900px 的手机画框呈现。
+- `public/assets/music/`：当前使用的 6 个场景配乐片段，共约 11.84 MB；最大文件约 4.07 MB。
+- `public/assets/stellar-ambient.mp3`：旧版 72 秒原创配乐，保留为历史素材，当前不再默认播放。
+- `public/data.js`：可替换的示例数据。
+- `public/assets/`：优化后的图片、全景、MP3 与 MP4。
 - `DATA-CONTRACT.md`：服务端数据与媒体接入约定。
 - `MUSIC-CUES.md`：音乐原文件、截取时间、播放规则与验证边界。
 - `QA.md`：实际检查结果与验证限制。
@@ -38,7 +38,7 @@
 
 ## 当前边界
 
-这是可交互的演示 H5，未连接真实聊天服务、生成服务、登录或实时通话。照片为 AI 场景示意，视频为场景动画，语音为预制的中文合成声音。收藏仅存于当前浏览器。真实内容接入前需按数据约定核对统计口径、内容来源和用户权限。
+演示模式保留虚构回忆；私人预览已接入 staging 年度数据，尚未接入实时通话或多用户生产登录。照片为 AI 场景示意，视频为场景动画，语音为预制的中文合成声音。收藏仅存于当前浏览器。真实内容接入前需按数据约定核对统计口径、内容来源和用户权限。
 
 360° 模式需要 WebGL；不可用或全景加载失败时回退平面叙事。已在 Chrome 检查桌面及 390×844 响应式视口；手机触屏双指操作和各 WebView 的媒体策略仍需真机验收。演示发布默认仅网站所有者可访问。
 
@@ -59,3 +59,8 @@
 场景之间使用 1.1 秒交叉渐变，最多使用两个流式音频元素，不将全部音乐解码为内存缓冲。重播开场、完成或跳过开场后抵达主星系，均从对应片段的 0 秒开始；从主题星系返回主星系则续播。播报及 Bot 有声音频/视频播放期间，背景音乐降到当前曲目基础音量的 28%；静音和进入后台暂停背景音乐。Safari 若拒绝第二个音频元素播放，会尝试复用已解锁的元素切歌。
 
 相机与音乐联合回归：`node --test tests/camera.test.mjs tests/music.test.mjs`，本轮共 31 项通过。Chrome 390×844 本地页面已实测开场配乐、自动抵达、四个主题切歌、返回主星系续播与双路静音暂停；此次版本的远端发布、完整循环听感和手机真机体验仍按 `QA.md` 单独记录，不以单元测试代替实播验收。
+
+
+## Live annual data
+
+The private Sites deployment now uses an authenticated same-origin runtime. See LIVE-INTEGRATION.md for source layout, build, data rules, privacy boundaries and the backend checklist. DataSage retains an explicit demo configuration.

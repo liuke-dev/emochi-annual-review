@@ -45,7 +45,7 @@ export function createMusicFixture({ autoPlay = true, autoMetadata = true, hidde
     requestAnimationFrame: callback => { const id = ++nextFrame; frames.set(id, callback); return id; },
     cancelAnimationFrame: id => frames.delete(id), console };
   vm.createContext(context);
-  vm.runInContext(readFileSync(new URL('../dist/music.js', import.meta.url), 'utf8'), context);
+  vm.runInContext(readFileSync(new URL('../public/music.js', import.meta.url), 'utf8'), context);
   const player = new context.window.StellarMusic({ onError: error => errors.push(error) });
   async function flush() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
   function frame(milliseconds = 1000 / 60) {

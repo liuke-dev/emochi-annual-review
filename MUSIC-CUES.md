@@ -1,6 +1,6 @@
 # 星间来信 · 场景配乐表
 
-更新日期：2026-10-15。当前背景音乐来自用户提供的三份音频，原文件未修改；本表描述单独导出的运行时片段。旧版 `dist/assets/stellar-ambient.mp3` 保留为历史素材，当前播放器不再默认使用它。
+更新日期：2026-10-15。当前背景音乐来自用户提供的三份音频，原文件未修改；本表描述单独导出的运行时片段。旧版 `public/assets/stellar-ambient.mp3` 保留为历史素材，当前播放器不再默认使用它。
 
 ## 素材与片段
 
@@ -8,12 +8,12 @@
 
 | 场景 ID | 页面 | 原文件 | 原文件开始 | 原文件结束 | 片段时长 | 运行时文件 |
 | --- | --- | --- | ---: | ---: | ---: | --- |
-| `intro` | 星云穿梭开场 | `the_mountain.mp3` | 0.000000 | 113.502031 | 约 113.502 秒 | `dist/assets/music/intro.mp3` |
-| `galaxy` | 主星系 | `ambient-space 1.mp3` | 63.000000 | 266.057125 | 约 203.057 秒 | `dist/assets/music/galaxy.mp3` |
-| `romance` | 心动星系 | `ambient-space 1.mp3` | 183.000000 | 253.000000 | 70 秒 | `dist/assets/music/romance.mp3` |
-| `fantasy` | 幻境星系 | `ambient-space 2.mp3` | 0.000000 | 70.000000 | 70 秒 | `dist/assets/music/fantasy.mp3` |
-| `dark` | 永夜星系 | `the_mountain.mp3` | 45.000000 | 110.000000 | 65 秒 | `dist/assets/music/dark.mp3` |
-| `scifi` | 星际星系 | `ambient-space 2.mp3` | 88.000000 | 158.000000 | 70 秒 | `dist/assets/music/scifi.mp3` |
+| `intro` | 星云穿梭开场 | `the_mountain.mp3` | 0.000000 | 113.502031 | 约 113.502 秒 | `public/assets/music/intro.mp3` |
+| `galaxy` | 主星系 | `ambient-space 1.mp3` | 63.000000 | 266.057125 | 约 203.057 秒 | `public/assets/music/galaxy.mp3` |
+| `romance` | 心动星系 | `ambient-space 1.mp3` | 183.000000 | 253.000000 | 70 秒 | `public/assets/music/romance.mp3` |
+| `fantasy` | 幻境星系 | `ambient-space 2.mp3` | 0.000000 | 70.000000 | 70 秒 | `public/assets/music/fantasy.mp3` |
+| `dark` | 永夜星系 | `the_mountain.mp3` | 45.000000 | 110.000000 | 65 秒 | `public/assets/music/dark.mp3` |
+| `scifi` | 星际星系 | `ambient-space 2.mp3` | 88.000000 | 158.000000 | 70 秒 | `public/assets/music/scifi.mp3` |
 
 开场与主星系分别使用用户指定曲目的开头和 01:03 入口。四个主题使用不同的片段起点：心动取较轻柔的后段，幻境取另一首的开头，永夜取 `the_mountain` 中后段，星际取 `ambient-space 2` 的后段。此处为场景选曲意图，情绪适配仍以用户试听为准。
 
@@ -33,7 +33,7 @@
 | 离开页面、随后浏览器返回 | 先停止播放器；返回后按页面状态恢复，不继续已取消的开场 |
 | 播放至片段末尾 | 循环当前片段；循环接点听感尚需完整试听 |
 
-基础音量由 `dist/music.js` 的 `LEVELS` 管理，数字为 HTMLAudioElement 音量系数，不是分贝或响度值：
+基础音量由 `public/music.js` 的 `LEVELS` 管理，数字为 HTMLAudioElement 音量系数，不是分贝或响度值：
 
 | 场景 | 基础音量 | 压低后目标 |
 | --- | ---: | ---: |
@@ -48,7 +48,7 @@
 
 ## 接入与验证
 
-当前场景映射固定在 `dist/music.js`，并使用与星系数据一致的 `romance/fantasy/dark/scifi` 标识。开场播报 `introAudioUrls` 与配乐是两套独立资源，替换统计播报无需重切背景音乐。新增风格或更换曲目时，需同时更新映射、片段文件和本表；只修改 `MEMORY_DATA` 不会新增音乐入口。
+当前场景映射固定在 `public/music.js`，并使用与星系数据一致的 `romance/fantasy/dark/scifi` 标识。开场播报 `introAudioUrls` 与配乐是两套独立资源，替换统计播报无需重切背景音乐。新增风格或更换曲目时，需同时更新映射、片段文件和本表；只修改 `MEMORY_DATA` 不会新增音乐入口。
 
 本轮已通过 31 项联合回归（17 项相机、14 项音乐），并在 Chrome 390×844 本地页面实测开场配乐、自动抵达、四个主题切歌、返回主星系续播及双路静音暂停，控制台无 warning/error。DataSage 版本 3 已发布，并在正式分享页验证穿越到主星系切曲；交叉渐变与完整循环听感和真实手机媒体权限仍按 `QA.md` 记录，未以模拟测试代替真机结论。
 

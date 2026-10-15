@@ -1,10 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 // Deterministic browser/GL boundary for input and camera contracts. It counts
 // actual draw submissions and records uploaded geometry/uniforms; it does not
 // claim to compile shaders or measure GPU frame time.
-export function createCameraFixture({ width = 390, height = 510, reduced = false } = {}) {
+export function createCameraFixture({ width = 390, height = 510, reduced = false, galaxies } = {}) {
   let now = 0, nextFrame = 0, boundBuffer;
   const scheduled = new Map(), buffers = new Map(), attributes = new Map();
   const metrics = { draws: 0, poses: 0, zooms: 0, dragEnds: 0, captures: 0, releases: 0, uniforms: {} };
@@ -50,9 +50,11 @@ export function createCameraFixture({ width = 390, height = 510, reduced = false
     performance: { now: () => now }, matchMedia: () => ({ matches: reduced }), requestAnimationFrame, cancelAnimationFrame, console };
   Object.assign(window, { requestAnimationFrame, cancelAnimationFrame, matchMedia: context.matchMedia });
   vm.createContext(context);
-  vm.runInContext(readFileSync(new URL('../dist/galaxy.js', import.meta.url), 'utf8'), context);
+  const publicSource = new URL('../public/galaxy.js', import.meta.url);
+  const source = existsSync(publicSource) ? publicSource : new URL('../dist/galaxy.js', import.meta.url);
+  vm.runInContext(readFileSync(source, 'utf8'), context);
   const camera = new window.StellarGalaxy(canvas, stage, {
-    onPose: () => metrics.poses++, onZoom: () => metrics.zooms++, onDragEnd: () => metrics.dragEnds++
+    onPose: () => metrics.poses++, onZoom: () => metrics.zooms++, onDragEnd: () => metrics.dragEnds++, galaxies
   });
   camera.setAuto(false);
   function frame(milliseconds = 1000 / 60) {
