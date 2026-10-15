@@ -33,3 +33,10 @@ Original PNGs retained unchanged; approximate PNG sizes: nebula 2.1MB, portraits
 
 ## Dedicated panoramic environments
 Four independent images were generated with built-in image_gen.imagegen as 2:1 full 360x180 equirectangular panoramas. Full prompts and projection notes: source-assets/panorama-prompts.txt. PNG originals retained as source-assets/pano-0.png through pano-3.png. Runtime textures are dist/assets/pano-0.webp through pano-3.webp (quality 82, no resize/crop). All dimensions verified at 1774x887; runtime asset sizes 204782, 248548, 400916, 291874 bytes. Rendered seam and pole quality should be checked in the final WebGL viewer; natural-language image generation does not guarantee mathematically identical edge pixels.
+
+
+2026-10-15 原创银河与音乐更新
+视觉方向参考：https://zjoooooo.github.io/galaxy-explorer/
+仅研究银河盘、星团、冷暖色分布和慢速镜头的视觉特征；未复用该站代码或素材。dist/galaxy.js 为独立编写的 WebGL 粒子渲染。
+音乐：静谧公转 / Quiet Orbits（页面显示“星海回声”），dist/assets/stellar-ambient.mp3。
+时长72秒，无鼓点；低频软垫、缓慢和声、稀疏电钢/钟琴和长空间尾音。音符序列、振荡器及噪声均独立合成，未复用、下载或改编参考站旋律/音频。非音频生成模型输出。
