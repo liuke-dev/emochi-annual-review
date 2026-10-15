@@ -19,7 +19,7 @@ function toast(message) { clearTimeout(toastTimer); $('#toast').textContent=mess
 function waveform(){return Array.from({length:21},(_,i)=>`<i style="--h:${5+Math.sin(i*.7)**2*19}px;--d:${i*.08}s"></i>`).join('');}
 function updateSound(){const b=$('#sound-button'); b.innerHTML=soundIcon(state.sound); b.setAttribute('aria-label',state.sound?'关闭声音':'开启声音'); b.title=state.sound?'关闭声音':'开启声音'; b.setAttribute('aria-pressed',String(state.sound));}
 function fadeMusic(target){
- if(!music)return;cancelAnimationFrame(musicFade);const start=music.volume,t0=performance.now();const tick=t=>{const k=Math.min(1,(t-t0)/650);music.volume=start+(target-start)*k;if(k<1)musicFade=requestAnimationFrame(tick);else if(target===0&&!state.sound)music.pause();};musicFade=requestAnimationFrame(tick);
+ if(!music)return;cancelAnimationFrame(musicFade);const start=music.volume,t0=performance.now();const tick=t=>{const k=Math.max(0,Math.min(1,(t-t0)/650));music.volume=Math.max(0,Math.min(1,start+(target-start)*k));if(k<1)musicFade=requestAnimationFrame(tick);else if(target===0&&!state.sound)music.pause();};musicFade=requestAnimationFrame(tick);
 }
 function activateAudio(){
  if(!music){music=new Audio('assets/stellar-ambient.mp3');music.id='background-music';music.setAttribute('aria-hidden','true');document.body.appendChild(music);music.loop=true;music.volume=0;music.preload='none';music.addEventListener('error',()=>toast('背景音乐暂时无法加载，其他回忆仍可继续体验'));}
