@@ -42,24 +42,37 @@ function speak(text, options={}){
 function setSound(on){state.sound=on;updateSound();activateAudio();$('.intro-sound').textContent=on?'声音：开':'声音：关';if(introAudio)introAudio.muted=!on;if(!on){cancelSpeech();if(state.mediaAudio)state.mediaAudio.muted=true;}else if(state.mediaAudio)state.mediaAudio.muted=false;const video=$('video',dialog);if(video)video.muted=!on;const vb=$('[data-action="video-sound"]');if(vb){vb.textContent=on?'♬ 有声':'♬ 静音';vb.setAttribute('aria-label',on?'静音短片':'开启短片声音');}}
 const styles=[{light:'#edb1d3',shade:'#71455e',glow:'#ba779e2b',size:99},{light:'#b7c8ff',shade:'#505e9b',glow:'#a6a6ff38',size:116},{light:'#be9df5',shade:'#4c346a',glow:'#9164d53b',size:96},{light:'#88ccdf',shade:'#315366',glow:'#73c6e62e',size:76},{light:'#7188a7',shade:'#253044',glow:'#55667712',size:45},{light:'#859c97',shade:'#2e4143',glow:'#55667712',size:41}];
 const initialPositions=[[42,25],[77,44],[29,64],[70,82],[17,28],[92,65]];
+let planetNodes=[];
+const planetStyleCache=new WeakMap();
 function makePlanets(){
   $('#planet-container').innerHTML=D.galaxies.map((g,i)=>{const s=styles[i];return `<button class="planet-node ${g.lit?'':'unlit'}" data-galaxy="${g.id}" aria-label="${esc(g.name)}，${g.lit?`${g.count}位伙伴，点击探索`:'尚未点亮'}" style="--light:${s.light};--shade:${s.shade};--glow:${s.glow};--size:${s.size}px"><span class="planet">${i===1?'<span class="planet-ring"></span>':''}</span><span class="planet-label">${esc(g.name.replace('星系',''))}${g.lit?'<em>已点亮</em>':''}<small>${g.lit?`${g.count} 位伙伴 · ${esc(g.tag)}回忆`:'尚未抵达 · 待点亮'}</small></span></button>`;}).join('');
+  planetNodes=$$('.planet-node');
   layoutPlanets();
 }
 function layoutPlanets(){
-  const mobile=innerWidth<=760;
-  $$('.planet-node').forEach((el,i)=>{
-    let x,y,depth=0;
-    if(state.view==='flat'){x=[28,72][i%2];y=i<2?28:72;}
-    else if(galaxyRenderer){const projected=galaxyRenderer.project(i);x=projected.x;y=projected.y;depth=projected.depth*3;}else{const [bx,by]=initialPositions[i],xx=bx-50,zz=(by-50)*.75;depth=zz*Math.cos(state.angle)-xx*Math.sin(state.angle);x=50+xx*Math.cos(state.angle)+zz*Math.sin(state.angle);y=by+depth*.11+state.tilt*((bx-50)/50);if(mobile)x=50+(x-50)*.91;}
-    const ignition=galaxyRenderer?.ignitionAt(i)??1;el.style.setProperty('--star-light',String(.08+.92*ignition));el.style.setProperty('--ignite-scale',String(1+Math.sin(ignition*Math.PI)*1.8));el.style.setProperty('--ignite-ring',String(Math.sin(ignition*Math.PI)*.65));el.classList.toggle('is-igniting',ignition>0&&ignition<1);el.classList.toggle('label-left',x>65);el.style.left=x+'%';el.style.top=y+'%';el.style.zIndex=String(Math.round(50+depth));
-    const scale=state.view==='flat'?1:1+depth*.002;
-    el.style.transform=`translate(-50%,-50%) scale(${scale})`;
-  });
+ const stage=$('#galaxy-stage');
+ const width=galaxyRenderer?.width||stage.clientWidth,height=galaxyRenderer?.height||stage.clientHeight;
+ if(!width||!height)return;
+ for(let i=0;i<planetNodes.length;i++){
+  const el=planetNodes[i];let x,y,depth=0,visible=true;
+  if(state.view==='flat'){x=[28,72][i%2];y=i<2?28:72;}
+  else if(galaxyRenderer){const p=galaxyRenderer.project(i);x=p.x;y=p.y;depth=p.depth*3;visible=p.visible!==false;}
+  else{const [bx,by]=initialPositions[i],xx=bx-50,zz=(by-50)*.75;depth=zz*Math.cos(state.angle)-xx*Math.sin(state.angle);x=50+xx*Math.cos(state.angle)+zz*Math.sin(state.angle);y=by+depth*.11+state.tilt*((bx-50)/50);}
+  const ignition=galaxyRenderer?.ignitionAt(i)??1,scale=state.view==='flat'?1:Math.max(.8,Math.min(1.2,1+depth*.002));
+  const transform=`translate3d(${(x*.01*width).toFixed(2)}px,${(y*.01*height).toFixed(2)}px,0) translate(-50%,-50%) scale(${scale.toFixed(3)})`;
+  const prev=planetStyleCache.get(el)||{};
+  if(prev.transform===undefined){el.style.left='0';el.style.top='0';}if(prev.transform!==transform){el.style.transform=transform;prev.transform=transform;}
+  const z=String(Math.round(50+depth));if(prev.z!==z){el.style.zIndex=z;prev.z=z;}
+  const left=x>65;if(prev.left!==left){el.classList.toggle('label-left',left);prev.left=left;}
+  if(prev.visible!==visible){el.classList.toggle('is-projected-out',!visible);el.tabIndex=visible?0:-1;prev.visible=visible;}
+  if(prev.ignition!==ignition){el.style.setProperty('--star-light',String(.08+.92*ignition));el.style.setProperty('--ignite-scale',String(1+Math.sin(ignition*Math.PI)*1.8));el.style.setProperty('--ignite-ring',String(Math.sin(ignition*Math.PI)*.65));el.classList.toggle('is-igniting',ignition>0&&ignition<1);prev.ignition=ignition;}
+  planetStyleCache.set(el,prev);
+ }
 }
-function setView(view){state.view=view;galaxyRenderer?.setFlat(view==='flat');document.body.classList.toggle('is-flat',view==='flat');$$('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));layoutPlanets();state.worldAngle=0;layoutWorld();}
+
+function setView(view){state.view=view;document.body.classList.toggle('is-flat',view==='flat');galaxyRenderer?.setFlat(view==='flat');galaxyRenderer?.resize();$$('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));layoutPlanets();state.worldAngle=0;layoutWorld();}
 function applyPage(page){
- state.page=page;document.body.classList.remove('is-cover','is-map','is-world');document.body.classList.add('is-'+page);$('#universe').hidden=page==='world';$('#world').hidden=page!=='world';galaxyRenderer?.setActive(page!=='world');if(page!=='world'){galaxyRenderer?.resize();if(state.universePose&&galaxyRenderer){const p=state.universePose;galaxyRenderer.distance=p.distance;galaxyRenderer.setCamera(p.yaw,p.pitch);galaxyRenderer.setAuto(p.auto);state.universePose=null;}}layoutPlanets();
+ state.page=page;document.body.classList.remove('is-cover','is-map','is-world');document.body.classList.add('is-'+page);$('#universe').hidden=page==='world';$('#world').hidden=page!=='world';galaxyRenderer?.setActive(page!=='world');if(page!=='world'){galaxyRenderer?.resize();if(state.universePose&&galaxyRenderer){galaxyRenderer.setPose(state.universePose);state.universePose=null;}}layoutPlanets();
 }
 async function travel(fn,label){if(state.transition)return;state.transition=true;const overlay=$('#travel-overlay');$('span',overlay).textContent=label||'正在穿越星际…';overlay.classList.add('active');await new Promise(r=>setTimeout(r,reduced?0:380));fn();window.scrollTo({top:0,behavior:'instant'});await new Promise(r=>setTimeout(r,reduced?0:150));overlay.classList.remove('active');state.transition=false;}
 function toMap(){endIntro(false);closeDialog();travel(()=>{applyPage('map');history.replaceState(null,'','#universe');},'回到你的年度宇宙');}
@@ -68,7 +81,7 @@ function openGalaxy(id){
  if(state.transition)return;
  const g=D.galaxies.find(g=>g.id===id);if(!g)return;
  if(!g.lit){toast(`${g.name}还没有足迹，把新的故事留给下一年。`);return;}
- closeDialog();state.galaxy=g;state.worldAngle=0;if(galaxyRenderer&&state.page!=='world'&&state.view==='orbit'){state.universePose={yaw:galaxyRenderer.yaw,pitch:galaxyRenderer.pitch,distance:galaxyRenderer.distance,auto:galaxyRenderer.auto};galaxyRenderer.focus(D.galaxies.indexOf(g));}
+ closeDialog();state.galaxy=g;state.worldAngle=0;if(galaxyRenderer&&state.page!=='world'&&state.view==='orbit'){state.universePose=galaxyRenderer.getPose();galaxyRenderer.focus(D.galaxies.indexOf(g));}
  travel(()=>{
   applyPage('world');document.documentElement.style.setProperty('--world-accent',g.color);$('.world-background').style.backgroundPosition=`${position(g.bots[0].portrait)} center`;
   $('.world-heading').innerHTML=`<div class="eyebrow">${esc(g.english)} / ${esc(g.tag.toUpperCase())} CONSTELLATION</div><h1>${esc(g.name)}</h1><p>${esc(g.description)}</p><span class="world-meta">${g.count} 位同行者 · ${nf(g.words)} 字共同故事 · 精选 ${g.bots.length} 位伙伴</span>`;
@@ -110,7 +123,7 @@ async function startIntro(){
  document.body.classList.remove('arrived');document.body.classList.add('is-intro');$('#intro').hidden=false;$('#intro').dataset.phase='flight';
  galaxyRenderer?.setActive(false);setSound(true);duckMusic(true);window.scrollTo({top:0,behavior:'instant'});
  try{
-  if(!flight)flight=new window.StellarFlight($('#flight-canvas'),{onLandingProgress:p=>{if(!document.body.classList.contains('is-intro'))return;const e=p*p*(3-2*p);if(galaxyRenderer){galaxyRenderer.distance=6.6+3.9*e;galaxyRenderer.setIgnition(Math.max(0,Math.min(1,(p-.4)/.6)));layoutPlanets();}}});
+  if(!flight)flight=new window.StellarFlight($('#flight-canvas'),{onLandingProgress:p=>{if(!document.body.classList.contains('is-intro'))return;const e=p*p*(3-2*p);if(galaxyRenderer){galaxyRenderer.distance=6.6+3.9*e;galaxyRenderer.setIgnition(Math.max(0,Math.min(1,(p-.4)/.6)));}}});
   flight.start();document.body.classList.add('has-flight');
  }catch(error){console.warn('Flight visual fallback:',error.message);document.body.classList.remove('has-flight');}
  const scenes=[
