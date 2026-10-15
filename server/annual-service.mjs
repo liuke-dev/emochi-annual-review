@@ -5,7 +5,10 @@ class ApiFailure extends Error { constructor(code,status,requestId){super(code);
 export function createAnnualService({normalize,fetchImpl=fetch}) {
  return async function handle(request,env,{local=false}={}) {
   const url=new URL(request.url);
-  if(!request.headers.get('oai-authenticated-user-id')&&!local)return reply({code:'sign_in_required'},401);
+  const signedId=request.headers.get('oai-authenticated-user-id');
+  const ownerEmail=env.ANNUAL_OWNER_EMAIL;
+  const signedOwner=ownerEmail&&request.headers.get('oai-authenticated-user-email')?.toLowerCase()===ownerEmail.toLowerCase();
+  if(!signedId&&!signedOwner&&!local)return reply({code:'sign_in_required'},401);
   if(request.method!=='GET')return reply({code:'method_not_allowed'},405);
   // This preview is pinned to one configured subject; browser input never selects another user.
   if(url.search)return reply({code:'invalid_argument'},400);

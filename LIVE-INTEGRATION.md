@@ -11,7 +11,7 @@
 - `build/sites-worker.ts`：沿用 Sites 官方服务端运行与身份接线；私人接口拒绝未登录访问。本机开发模式仅供回环地址预览。
 - `public/live-ui.js`：真实角色头像、足迹、可用故事、图片与唯一年度来电的界面。
 
-`npm test` 执行相机、音乐、适配和代理回归；`npm run build` 生成 Sites Worker 与静态资源。`npm run dev` 使用官方本机预览运行方式。服务端凭证通过 Sites Secret 配置 `ANNUAL_API_TOKEN` 与 `ANNUAL_USER_ID`，源码、浏览器存储和发布包不保存值。正式上线需要后端将当前固定测试用户改为受信的登录用户身份映射；这版不是多用户生产鉴权实现。
+`npm test` 执行相机、音乐、适配和代理回归；`npm run build` 生成 Sites Worker 与静态资源。`npm run dev` 使用官方本机预览运行方式。服务端凭证通过 Sites Secret 配置 `ANNUAL_API_TOKEN`、`ANNUAL_USER_ID` 与 `ANNUAL_OWNER_EMAIL`，源码、浏览器存储和发布包不保存值。正式上线需要后端将当前固定测试用户改为受信的登录用户身份映射；这版不是多用户生产鉴权实现。
 
 ## 当前显示规则
 

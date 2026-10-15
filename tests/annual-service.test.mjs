@@ -115,3 +115,12 @@ test('unexpected audio content types fail closed and missing configuration expos
   assert.equal(missing.status, 503); privateResponse(missing);
   assert.deepEqual(await missing.json(), { code: 'not_configured' });
 });
+
+test('a platform-injected owner email supports private Sites hosts without a user-id header', async () => {
+ const f=fixture(),ownerEnv={...env,ANNUAL_OWNER_EMAIL:'owner@example.invalid'};
+ const noId=email=>new Request(origin+'/api/annual-data',{headers:{'oai-authenticated-user-email':email}});
+ assert.equal((await f.handle(noId('other@example.invalid'),ownerEnv)).status,401);
+ assert.equal(f.calls.length,0);
+ assert.equal((await f.handle(noId('owner@example.invalid'),env)).status,401);
+ assert.equal((await f.handle(noId('owner@example.invalid'),ownerEnv)).status,200);
+});
