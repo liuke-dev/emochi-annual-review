@@ -2,7 +2,7 @@ const BASE = 'https://staging.afterglow.kaonai.com';
 const headers = {'Cache-Control':'private, no-store, max-age=0','Pragma':'no-cache','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'};
 const reply=(body,status=200)=>Response.json(body,{status,headers});
 class ApiFailure extends Error { constructor(code,status,requestId){super(code);Object.assign(this,{code,status,requestId});} }
-export function createAnnualService({normalize,fetchImpl=fetch}) {
+export function createAnnualService({normalize,fetchImpl=(input,options)=>globalThis.fetch(input,options)}) {
  return async function handle(request,env,{local=false}={}) {
   const url=new URL(request.url);
   const signedId=request.headers.get('oai-authenticated-user-id');
@@ -16,7 +16,7 @@ export function createAnnualService({normalize,fetchImpl=fetch}) {
   async function upstream(path,json=true){
    let response;
    try{response=await fetchImpl(BASE+path,{headers:{Authorization:`Bearer ${env.ANNUAL_API_TOKEN}`,userId:env.ANNUAL_USER_ID,Accept:json?'application/json':'audio/mpeg'},redirect:'error',signal:AbortSignal.timeout(25000)});}
-   catch{throw new ApiFailure('upstream_unavailable',502);}
+   catch(error){const detail=String(error?.message||'request failed').split(String(env.ANNUAL_API_TOKEN)).join('[redacted]').split(String(env.ANNUAL_USER_ID)).join('[redacted]').slice(0,300);console.warn('Annual upstream connection:',error?.name||'Error',detail);throw new ApiFailure('upstream_unavailable',502);}
    const rid=response.headers.get('X-Request-Id');
    if(!response.ok)throw new ApiFailure(response.status===401?'upstream_unauthorized':response.status===403?'forbidden_region':'upstream_unavailable',response.status===401||response.status===403?response.status:502,rid);
    if(!json)return response;
