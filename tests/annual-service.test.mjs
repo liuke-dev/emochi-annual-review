@@ -62,7 +62,7 @@ test('upstream auth and subject are fixed env values; browser headers and raw bo
     assert.ok(call.url.endsWith('?period=2026'));
     assert.equal(call.options.headers.Authorization, 'Bearer ' + env.ANNUAL_API_TOKEN);
     assert.equal(call.options.headers.userId, env.ANNUAL_USER_ID);
-    assert.equal(call.options.redirect, 'error');
+    assert.equal(call.options.redirect, 'manual');
     assert.ok(call.options.signal instanceof AbortSignal);
   }
   const body = await res.text();
@@ -123,4 +123,12 @@ test('a platform-injected owner email supports private Sites hosts without a use
  assert.equal(f.calls.length,0);
  assert.equal((await f.handle(noId('owner@example.invalid'),env)).status,401);
  assert.equal((await f.handle(noId('owner@example.invalid'),ownerEnv)).status,200);
+});
+
+
+test('manual redirects are rejected without forwarding credentials to another origin', async()=>{
+ const f=fixture({responder:()=>new Response(null,{status:302,headers:{Location:'https://outside.invalid'}})});
+ const r=await f.handle(request('/api/annual-data'),env);
+ assert.equal(r.status,502);assert.equal(f.calls.length,5);
+ assert.ok(f.calls.every(c=>c.options.redirect==='manual'&&c.url.startsWith('https://staging.afterglow.kaonai.com/')));
 });

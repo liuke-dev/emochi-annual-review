@@ -15,7 +15,7 @@ export function createAnnualService({normalize,fetchImpl=(input,options)=>global
   if(!env.ANNUAL_API_TOKEN||!env.ANNUAL_USER_ID)return reply({code:'not_configured'},503);
   async function upstream(path,json=true){
    let response;
-   try{response=await fetchImpl(BASE+path,{headers:{Authorization:`Bearer ${env.ANNUAL_API_TOKEN}`,userId:env.ANNUAL_USER_ID,Accept:json?'application/json':'audio/mpeg'},redirect:'error',signal:AbortSignal.timeout(25000)});}
+   try{response=await fetchImpl(BASE+path,{headers:{Authorization:`Bearer ${env.ANNUAL_API_TOKEN}`,userId:env.ANNUAL_USER_ID,Accept:json?'application/json':'audio/mpeg'},redirect:'manual',signal:AbortSignal.timeout(25000)});}
    catch(error){const detail=String(error?.message||'request failed').split(String(env.ANNUAL_API_TOKEN)).join('[redacted]').split(String(env.ANNUAL_USER_ID)).join('[redacted]').slice(0,300);console.warn('Annual upstream connection:',error?.name||'Error',detail);throw new ApiFailure('upstream_unavailable',502);}
    const rid=response.headers.get('X-Request-Id');
    if(!response.ok)throw new ApiFailure(response.status===401?'upstream_unauthorized':response.status===403?'forbidden_region':'upstream_unavailable',response.status===401||response.status===403?response.status:502,rid);
