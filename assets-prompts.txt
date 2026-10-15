@@ -46,3 +46,8 @@ Four independent images were generated with built-in image_gen.imagegen as 2:1 f
 视觉方向参考：https://rainner.github.io/wormhole-extreme/
 仅参考中心收束、连续云雾纵深和前进感；flight.js 为独立体积噪声着色器，没有使用参考站的代码、纹理或模型。
 女性播报：系统 Tingting 中文女声，rate180、轻微0.97降调、200–4300Hz轻电台滤波、温和压缩、28ms极轻回响与微弱传输声；五段共34.89秒，约422KB。演示素材，非真人配音。
+
+
+2026-10-15 自然女声与离子版
+新版语音：Microsoft Edge公开神经语音 zh-CN-XiaoxiaoNeural，通过公开edge-tts项目实际生成，rate -10%、pitch -6Hz；78%自然原声与22%轻无线电染色，数字前后留0.6/0.9秒。未使用旧Tingting声音再次滤波，也未使用真人声音克隆。5段45.09秒，约545KB。生成记录位于本地work/voice-v4/report.json。
+新画面：原创着色器离子尾迹、弧线与粒子，巡航0.92单位/秒；蓝青→玫瑰薰衣草→冰青→紫琥珀→暖金淡紫。每幕1800ms平滑变色，不重置空间运动。

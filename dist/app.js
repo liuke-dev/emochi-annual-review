@@ -52,7 +52,7 @@ function layoutPlanets(){
     let x,y,depth=0;
     if(state.view==='flat'){x=[28,72][i%2];y=i<2?28:72;}
     else if(galaxyRenderer){const projected=galaxyRenderer.project(i);x=projected.x;y=projected.y;depth=projected.depth*3;}else{const [bx,by]=initialPositions[i],xx=bx-50,zz=(by-50)*.75;depth=zz*Math.cos(state.angle)-xx*Math.sin(state.angle);x=50+xx*Math.cos(state.angle)+zz*Math.sin(state.angle);y=by+depth*.11+state.tilt*((bx-50)/50);if(mobile)x=50+(x-50)*.91;}
-    el.classList.toggle('label-left',x>65);el.style.left=x+'%';el.style.top=y+'%';el.style.zIndex=String(Math.round(50+depth));
+    const ignition=galaxyRenderer?.ignitionAt(i)??1;el.style.setProperty('--star-light',String(.08+.92*ignition));el.style.setProperty('--ignite-scale',String(1+Math.sin(ignition*Math.PI)*1.8));el.style.setProperty('--ignite-ring',String(Math.sin(ignition*Math.PI)*.65));el.classList.toggle('is-igniting',ignition>0&&ignition<1);el.classList.toggle('label-left',x>65);el.style.left=x+'%';el.style.top=y+'%';el.style.zIndex=String(Math.round(50+depth));
     const scale=state.view==='flat'?1:1+depth*.002;
     el.style.transform=`translate(-50%,-50%) scale(${scale})`;
   });
@@ -100,9 +100,9 @@ function waitForIntroVisible(token){
  if(!document.hidden)return Promise.resolve(true);
  return new Promise(resolve=>{const finish=()=>{document.removeEventListener('visibilitychange',check);introVisibilityWaiters.delete(finish);resolve(token===state.introToken&&!document.hidden);};const check=()=>{if(!document.hidden||token!==state.introToken)finish();};introVisibilityWaiters.add(finish);document.addEventListener('visibilitychange',check);});
 }
-function prepareArrival(durationMs=7000){
+function prepareArrival(durationMs=9000){
  document.body.classList.add('is-arriving');$('#intro').dataset.phase='arrival';
- if(galaxyRenderer){galaxyRenderer.reset();galaxyRenderer.setAuto(false);galaxyRenderer.distance=15;galaxyRenderer.setActive(true);galaxyRenderer.resize();}
+ if(galaxyRenderer){galaxyRenderer.reset();galaxyRenderer.setAuto(false);galaxyRenderer.distance=6.6;galaxyRenderer.setIgnition(0);galaxyRenderer.setActive(true);galaxyRenderer.resize();}
  if(flight)flight.beginLanding(durationMs);
 }
 async function startIntro(){
@@ -110,20 +110,20 @@ async function startIntro(){
  document.body.classList.remove('arrived');document.body.classList.add('is-intro');$('#intro').hidden=false;$('#intro').dataset.phase='flight';
  galaxyRenderer?.setActive(false);setSound(true);duckMusic(true);window.scrollTo({top:0,behavior:'instant'});
  try{
-  if(!flight)flight=new window.StellarFlight($('#flight-canvas'),{onLandingProgress:p=>{if(!document.body.classList.contains('is-intro'))return;const e=p*p*(3-2*p);if(galaxyRenderer){galaxyRenderer.distance=15-4.5*e;galaxyRenderer.draw(performance.now());layoutPlanets();}}});
+  if(!flight)flight=new window.StellarFlight($('#flight-canvas'),{onLandingProgress:p=>{if(!document.body.classList.contains('is-intro'))return;const e=p*p*(3-2*p);if(galaxyRenderer){galaxyRenderer.distance=6.6+3.9*e;galaxyRenderer.setIgnition(Math.max(0,Math.min(1,(p-.4)/.6)));layoutPlanets();}}});
   flight.start();document.body.classList.add('has-flight');
  }catch(error){console.warn('Flight visual fallback:',error.message);document.body.classList.remove('has-flight');}
  const scenes=[
-  {title:`${D.user.name}，\n欢迎返航。`,kicker:'来自星际航行中心',sub:'穿过这一年的星光',speech:`亲爱的${D.user.name}，这里是星际航行中心。请放松，跟我一起，穿过这一年的星光。`},
-  {title:nf(D.user.days),kicker:'这一年，我们一起走过',sub:'天 · 陪伴让日子有了光',number:true,speech:`${D.user.days}天。那些平凡的日子，因为每一次陪伴，慢慢有了光。`},
-  {title:nf(D.user.words),kicker:'我们共同写下',sub:'字 · 把心事写成星河',number:true,wide:true,speech:`${D.user.words}个字。你们把心事和想象，写成了一整个宇宙。`},
-  {title:nf(D.user.botCount),kicker:'穿越星海，与你相遇',sub:'位伙伴 · 每一次相遇，都有光',number:true,speech:`${D.user.botCount}位伙伴。每一次相遇，都有一颗星，为你亮起。`},
-  {title:'你的宇宙，\n到了。',kicker:'正在减速',sub:'他们的心意，都在星光里',final:true,speech:'我们正在减速。看，你的年度宇宙到了。他们想说的话，就藏在星光里。'}
+  {title:`${D.user.name}，\n听得到吗？`,kicker:'来自星际航行中心',sub:'让我陪你，回到星光里',speech:`${D.user.name}，听得到吗？这里是星际航行中心。别着急。让我陪你，回到这一年的星光里。`},
+  {title:nf(D.user.days),kicker:'这一年，我们一起走过',sub:'天 · 陪伴让日子有了光',number:true,speech:`${D.user.days}天。原来，那些普通的日子，都因为有人陪伴，悄悄亮了起来。`},
+  {title:nf(D.user.words),kicker:'我们共同写下',sub:'字 · 把心事写成星河',number:true,wide:true,speech:`${D.user.words}个字。那些没说完的心事，还有认真做过的梦，我们都替你记得。`},
+  {title:nf(D.user.botCount),kicker:'穿越星海，与你相遇',sub:'位伙伴 · 每一次相遇，都有光',number:true,speech:`${D.user.botCount}位伙伴。在不同的世界里，一次又一次，与你相遇。`},
+  {title:'你的宇宙，\n到了。',kicker:'正在减速',sub:'他们的心意，都在星光里',final:true,speech:'我们正在减速。看，那就是你的宇宙。有些想对你说的话，已经等了很久。'}
  ];
  const center=$('.intro-center');
  for(let i=0;i<scenes.length;i++){
   if(!await waitForIntroVisible(token))return;
-  const s=scenes[i];center.className='intro-center'+(s.number?' is-number':'')+(s.wide?' is-wide-number':'')+(s.final?' is-final':'');
+  const s=scenes[i];flight?.setChapter?.(i,1800);$('#intro').dataset.theme=String(i);center.className='intro-center'+(s.number?' is-number':'')+(s.wide?' is-wide-number':'')+(s.final?' is-final':'');
   $('.intro-counter').textContent=`0${i+1} / 05`;$('.intro-kicker').textContent=s.kicker;$('.intro-center h2').textContent=s.title;$('.intro-center p').textContent=s.sub;$('.intro-progress i').style.width=`${(i+1)*20}%`;$('#intro').dataset.scene=String(i);
   void center.offsetWidth;center.classList.add(reduced?'cue-hold':'cue-enter');
   if(s.final)prepareArrival();
@@ -135,7 +135,7 @@ async function startIntro(){
 function stopIntroAudio(){if(introAudio){introAudio.onended=null;introAudio.onerror=null;introAudio.pause();introAudio.remove();introAudio=null;}if(introResolve){introResolve();introResolve=null;}}
 async function narrateIntro(text,index,token){
  if(!await waitForIntroVisible(token))return;
- const url=D.introAudioUrls?.[index] || (D.demo ? `assets/intro-female-${index}.mp3` : null);
+ const url=D.introAudioUrls?.[index] || (D.demo ? `assets/intro-cinematic-${index}.mp3` : null);
  if(!url)return speak(text,{duration:Math.max(6500,text.length*170),rate:.8,pitch:1,notify:true});
  stopIntroAudio();
  return new Promise(resolve=>{
@@ -160,7 +160,9 @@ async function skipIntro(){
  const arriving=document.body.classList.contains('is-arriving');state.introToken++;const token=state.introToken;stopIntroAudio();cancelSpeech();$('#intro').dataset.phase='skipping';$('.intro-center').classList.remove('cue-enter');$('.intro-center').classList.add('cue-exit');if(arriving){flight?.beginLanding(reduced?100:1800);}else prepareArrival(reduced?100:1800);$('#intro').dataset.phase='skipping';await finishArrival(token);
 }
 function endIntro(goMap){
+ const wasIntro=document.body.classList.contains('is-intro')||document.body.classList.contains('is-arriving');
  state.introToken++;for(const finish of [...introVisibilityWaiters])finish();duckMusic(false);flight?.stop();stopIntroAudio();cancelSpeech();document.body.classList.remove('is-intro','is-arriving');$('#intro').hidden=true;$('#intro').dataset.phase='idle';
+ if(wasIntro&&galaxyRenderer){galaxyRenderer.distance=10.5;galaxyRenderer.setIgnition(1);}
  if(state.page!=='world')galaxyRenderer?.setActive(true);
  if(goMap){applyPage('map');galaxyRenderer?.setAuto(!reduced);history.replaceState(null,'','#universe');}
 }

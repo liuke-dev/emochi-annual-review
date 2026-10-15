@@ -3,6 +3,14 @@
   'use strict';
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const ease = value => value * value * (3 - 2 * value);
+  // Cloud shadow, illuminated gas, and ions for each narration chapter.
+  const PALETTES = [
+    [0.08,0.16,0.52, 0.08,0.66,0.86, 0.46,0.86,1.00],
+    [0.41,0.14,0.36, 0.65,0.34,0.73, 0.96,0.62,0.84],
+    [0.035,0.28,0.32, 0.16,0.68,0.79, 0.54,0.96,1.00],
+    [0.32,0.12,0.62, 0.76,0.42,0.16, 0.95,0.72,0.48],
+    [0.39,0.29,0.24, 0.52,0.40,0.65, 0.92,0.80,0.63]
+  ];
 
   class StellarFlight {
     constructor(canvas, { onLandingProgress } = {}) {
@@ -16,6 +24,10 @@
       this._landingProgressStart = 0;
       this._travel = 0;
       this._elapsed = 0;
+      this._speed = 0.24;
+      this.chapter = 0;
+      this._palette = PALETTES[0].slice();
+      this._paletteMoving = false;
       this._quality = 1;
       this._slowFrames = 0;
       this._lastTime = null;
@@ -46,6 +58,10 @@
         uniform float uArrival;
         uniform float uReduced;
         uniform float uSteps;
+        uniform float uMotion;
+        uniform vec3 uCloudA;
+        uniform vec3 uCloudB;
+        uniform vec3 uIon;
 
         // A small value-noise volume creates clouds with continuous depth.
         float seed(vec3 p) {
@@ -92,33 +108,52 @@
             density *= smoothstep(0.8, 2.0, depth) * (1.0-smoothstep(12.0, 16.0, depth));
             float alpha = 1.0 - exp(-density * stepLength * 0.65);
             float tint = smoothstep(0.22, 0.77, broad + p.x * 0.08);
-            vec3 cloud = mix(vec3(0.32,0.10,0.64), vec3(0.12,0.65,0.78), tint);
-            cloud += vec3(0.25,0.30,0.37) * pow(detail, 5.0);
+            vec3 cloud = mix(uCloudA, uCloudB, tint);
+            cloud += mix(uIon, vec3(0.60),0.5) * pow(detail,5.0) * 0.55;
             light += transmission * alpha * cloud * 1.45;
             transmission *= 1.0-alpha;
           }
 
-          // A few thin points elongate into streaks; the cloud volume remains dominant.
+          // Sparse ion trails have bright heads and soft tails; movement follows the flight.
           float radial = length(screen);
-          float sector = (atan(screen.y, screen.x) + 3.141593) * 17.825;
+          float angle = atan(screen.y, screen.x);
+          float sector = (angle + 3.141593) * 17.825;
           float id = floor(sector);
           float starSeed = seed(vec3(id, 8.0, 3.0));
-          float strand = 1.0-smoothstep(0.006, 0.026, abs(fract(sector)-0.5));
-          float head = 0.13 + fract(starSeed + uTravel * 0.047) * 1.22;
-          float streakLength = mix(0.065, 0.016, uReduced) * (0.4 + starSeed);
+          float angularDistance = abs(fract(sector)-0.5);
+          float strand = 1.0-smoothstep(0.014,0.065,angularDistance);
+          float cycle = fract(starSeed+uTravel*0.083);
+          float head = 0.12+pow(cycle,1.65)*1.65;
+          float streakLength = (0.014+0.071*uMotion)*(0.55+starSeed);
           float streak = strand * smoothstep(head-streakLength,head,radial)
-            * (1.0-smoothstep(head,head+0.009,radial)) * step(0.78,starSeed);
-          streak *= 0.24 * (1.0-smoothstep(0.0,0.8,uArrival));
-          light += vec3(0.40,0.60,0.82)*streak;
+            * (1.0-smoothstep(head,head+0.008,radial));
+          float tip = exp(-pow((radial-head)/0.007,2.0)-pow(angularDistance/0.045,2.0));
+          float lifecycle = smoothstep(0.01,0.12,cycle)*(1.0-smoothstep(0.84,1.0,cycle));
+          streak = (streak*0.36+tip*0.33)*step(0.70,starSeed)*lifecycle;
+          streak *= 1.0-smoothstep(0.22,0.90,uArrival);
+
+          // Incomplete, quietly bending plasma filaments avoid hard concentric rings.
+          float arcPathA = 0.38+0.075*sin(angle*2.8+uTravel*0.15)+0.022*sin(angle*7.0);
+          float arcPathB = 0.70+0.090*sin(angle*2.1-uTravel*0.12)+0.018*sin(angle*8.0);
+          float windowA = smoothstep(-2.95,-2.35,angle)*(1.0-smoothstep(-0.95,-0.48,angle));
+          float windowB = smoothstep(0.30,0.65,angle)*(1.0-smoothstep(1.80,2.35,angle));
+          float distanceA = abs(radial-arcPathA),distanceB = abs(radial-arcPathB);
+          float arcA = (1.0-smoothstep(0.0018,0.007,distanceA))*windowA;
+          float arcB = (1.0-smoothstep(0.0018,0.007,distanceB))*windowB;
+          float arcGlow = exp(-distanceA*distanceA/0.0007)*windowA+exp(-distanceB*distanceB/0.0007)*windowB;
+          float arcs = ((arcA+arcB)*0.085+arcGlow*0.022)*(1.0-smoothstep(0.20,0.86,uArrival));
+          arcs *= mix(1.0,0.45,uReduced);
+          float ions = streak+arcs;
+          light += uIon*ions;
 
           // Remove the dark backdrop early; later cloud wisps reveal the live galaxy below.
           float backdrop = 1.0-smoothstep(0.28,0.70,uArrival);
           float front = smoothstep(0.36,0.98,uArrival) * 1.65 - 0.22;
           float dissolve = smoothstep(front-0.17,front+0.17,radial);
           float cloudFade = dissolve * (1.0-smoothstep(0.64,1.0,uArrival));
-          float cloudAlpha = clamp(1.0-transmission+streak,0.0,1.0)*cloudFade;
+          float cloudAlpha = clamp(1.0-transmission+ions,0.0,1.0)*cloudFade;
           float alpha = backdrop + cloudAlpha*(1.0-backdrop);
-          vec3 base = vec3(0.008,0.012,0.030);
+          vec3 base = mix(vec3(0.006,0.009,0.022),uCloudA*0.035,0.5);
           vec3 color = base*backdrop + light*cloudFade;
           gl_FragColor = vec4(clamp(color,vec3(0.0),vec3(alpha)),alpha);
         }
@@ -158,7 +193,7 @@
       gl.enableVertexAttribArray(this.position);
       gl.vertexAttribPointer(this.position, 2, gl.FLOAT, false, 0, 0);
       this.uniforms = {};
-      ['Resolution','Travel','Time','Arrival','Reduced','Steps'].forEach(name => {
+      ['Resolution','Travel','Time','Arrival','Reduced','Steps','Motion','CloudA','CloudB','Ion'].forEach(name => {
         this.uniforms[name] = gl.getUniformLocation(this.program, 'u' + name);
       });
       gl.disable(gl.DEPTH_TEST);
@@ -187,6 +222,10 @@
       this._landingElapsed = 0;
       this._elapsed = 0;
       this._travel = 0;
+      this._speed = 0.24;
+      this.chapter = 0;
+      this._palette = PALETTES[0].slice();
+      this._paletteMoving = false;
       this._slowFrames = 0;
       this._lastTime = null;
       this._lastDraw = null;
@@ -205,6 +244,21 @@
       this._landingDuration = duration;
       this._landingElapsed = 0;
       this._landing = true;
+    }
+
+    setChapter(index, transitionMs = 1600) {
+      const next = clamp(Number.isFinite(Number(index)) ? Math.round(Number(index)) : 0,0,PALETTES.length-1);
+      if (next === this.chapter && !this._paletteMoving) return;
+      this.chapter = next;
+      this._paletteFrom = this._palette.slice();
+      this._paletteTarget = PALETTES[next];
+      this._paletteElapsed = 0;
+      this._paletteDuration = Number.isFinite(transitionMs) ? Math.max(0,transitionMs) : 1600;
+      this._paletteMoving = this._paletteDuration > 0;
+      if (!this._paletteMoving) {
+        this._palette = this._paletteTarget.slice();
+        if (this._running) this._draw();
+      }
     }
 
     stop() {
@@ -238,6 +292,11 @@
       gl.uniform1f(u.Arrival,this._landingProgress);
       gl.uniform1f(u.Reduced,this.reduced ? 1 : 0);
       gl.uniform1f(u.Steps,this.width <= 540 ? 28 : 32);
+      gl.uniform1f(u.Motion,this.reduced ? 0 : this._speed);
+      const c = this._palette;
+      gl.uniform3f(u.CloudA,c[0],c[1],c[2]);
+      gl.uniform3f(u.CloudB,c[3],c[4],c[5]);
+      gl.uniform3f(u.Ion,c[6],c[7],c[8]);
       gl.drawArrays(gl.TRIANGLES,0,6);
     }
 
@@ -253,14 +312,21 @@
       const delta = clamp(frameMs / 1000,0,0.08);
       this._lastTime = now;
       this._elapsed += delta;
+      if (this._paletteMoving) {
+        this._paletteElapsed += Math.max(0,frameMs);
+        const p = clamp(this._paletteElapsed/this._paletteDuration,0,1), blend = ease(p);
+        for (let i=0;i<9;i++) this._palette[i] = this._paletteFrom[i]+(this._paletteTarget[i]-this._paletteFrom[i])*blend;
+        if (p === 1) this._paletteMoving = false;
+      }
       if (this._landing) {
         // Arrival follows visible wall time even when a low-power device misses frames.
         this._landingElapsed += Math.max(0,frameMs);
         const portion = clamp(this._landingElapsed / this._landingDuration,0,1);
         this._landingProgress = this._landingProgressStart + (1-this._landingProgressStart)*portion;
       }
-      const speed = this._landing ? Math.pow(1-ease(this._landingProgress),2) : 1;
-      this._travel += delta*0.36*speed;
+      const acceleration = 0.24+0.76*ease(clamp(this._elapsed/2.2,0,1));
+      this._speed = acceleration*(this._landing ? Math.pow(1-ease(this._landingProgress),2) : 1);
+      this._travel += delta*0.92*this._speed;
       if (frameMs > 42 && frameMs < 250) this._slowFrames++;
       else this._slowFrames = Math.max(0,this._slowFrames-0.25);
       if (this._slowFrames > 25 && this._quality > 0.7) {
@@ -268,7 +334,7 @@
         this._slowFrames = 0;
         this.resize();
       }
-      const interval = this.reduced && !this._landing ? 250 : 32;
+      const interval = this.reduced && !this._landing && !this._paletteMoving ? 250 : 32;
       if (this._lastDraw === null || now-this._lastDraw >= interval || this._landingProgress === 1) {
         this._lastDraw = now;
         this._draw();

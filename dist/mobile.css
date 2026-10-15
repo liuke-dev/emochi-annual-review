@@ -15,3 +15,6 @@ dialog{width:min(402px,calc(100vw - 24px));max-height:min(830px,92svh);border-ra
 .intro-center h2{text-shadow:0 2px 28px #09061599,0 0 22px #b08cdb25}#intro:after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 50% 43%,#06051322,transparent 58%)}
 
 .is-cover .planet-node{visibility:hidden}.world-footer>span{display:none}
+
+/* Each remembered world wakes gently as the main galaxy settles into place. */
+.has-particle-galaxy:not(.is-flat) .planet{width:8px;height:8px;opacity:var(--star-light,1);box-shadow:0 0 14px var(--light),0 0 28px var(--glow)}.has-particle-galaxy:not(.is-flat) .planet:before{inset:-16px;transform:scale(var(--ignite-scale,1));opacity:var(--ignite-ring,.06);border-color:var(--light);border-width:1px}.is-intro.is-arriving .planet:before{opacity:var(--ignite-ring,0)}.has-particle-galaxy:not(.is-flat) .planet:after{inset:-9px;opacity:.25}.is-igniting .planet{filter:brightness(1.4)}.intro-center.is-number h2{font-variant-numeric:lining-nums tabular-nums}.is-arriving #galaxy-canvas{transition:none}
