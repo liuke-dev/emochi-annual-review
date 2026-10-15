@@ -40,3 +40,9 @@ Four independent images were generated with built-in image_gen.imagegen as 2:1 f
 仅研究银河盘、星团、冷暖色分布和慢速镜头的视觉特征；未复用该站代码或素材。dist/galaxy.js 为独立编写的 WebGL 粒子渲染。
 音乐：静谧公转 / Quiet Orbits（页面显示“星海回声”），dist/assets/stellar-ambient.mp3。
 时长72秒，无鼓点；低频软垫、缓慢和声、稀疏电钢/钟琴和长空间尾音。音符序列、振荡器及噪声均独立合成，未复用、下载或改编参考站旋律/音频。非音频生成模型输出。
+
+
+2026-10-15 星云飞行与女声版
+视觉方向参考：https://rainner.github.io/wormhole-extreme/
+仅参考中心收束、连续云雾纵深和前进感；flight.js 为独立体积噪声着色器，没有使用参考站的代码、纹理或模型。
+女性播报：系统 Tingting 中文女声，rate180、轻微0.97降调、200–4300Hz轻电台滤波、温和压缩、28ms极轻回响与微弱传输声；五段共34.89秒，约422KB。演示素材，非真人配音。
