@@ -33,6 +33,24 @@
 
 共享演示：https://datasage.flow.chat/r/u369/stellar-echo-annual-2026
 
-后端清单：https://kaonai.feishu.cn/docx/P1XtdqTfxo23wjxTXGZcdgJHn90
+后端清单：https://kaonai.feishu.cn/wiki/NAt0wUASEi26x1k9mpJcHHHmniK
 
 DataSage 静态包通过 `node scripts/package-demo.mjs /absolute/output-directory` 从 `public/` 导出，把 runtime-config 设为 demo；不包含服务端代码、原始响应或凭证。真实查询不会跨域直连；生产网关注入用户身份与 CORS 方案仍需后端确定。
+
+## 切换联调用户与私人快照
+
+只更新服务端 Secret `ANNUAL_USER_ID`，不要把真实用户 ID 或 token 固化在代码中。每次重新读取 annual/profile/summary/content/call 五份响应，分用户保存在仓库外的目录；不要覆盖原用户原始响应。
+
+```sh
+node scripts/prepare-annual-data.mjs ../private-input ../private-output/annual.json ../private-output/intro-plan.json
+python3 scripts/local-intro.py ../private-output/intro-plan.json ../private-output/narration
+node scripts/export-annual-snapshot.mjs ../private-output/annual.json ../private-output/site ../private-output/narration ../private-output/call
+```
+
+`local-intro.py` 仅调用 macOS 已安装的 Tingting 女声和 FFmpeg；依赖 Python NumPy，不调用在线语音服务。需要允许系统语音服务写出音频。返回 `bundle.json` 和五段 MP3，含轻无线电滤波、舱内反射与关键数字停顿。
+
+年度来电音频应使用同一用户身份读取接口返回的 `/v1/audio/{id}`，存为私人 call 目录内的 `{id}.mp3`。这一步读取已有来电，不生成新语音。快照导出会核对所有音频文件并重写为本地资源；缺失音频时明确失败，不产生看似可播的空入口。
+
+开场语音绑定昵称、年度、截止日及播报统计。更换任意字段后，旧音频不会继续播放；导出不同用户时必须使用新的空目录，防止残留媒体。真实数据、个性化播报和原始响应必须留在仓库外；DataSage 真实快照仍需保持非公开权限。
+
+接口只提供历史原话但没有 AI 总结时，也会显示“回忆”入口并注明历史原话。不可用统计片段不再展示；只有当前用户对应的唯一年度来电可以出现。

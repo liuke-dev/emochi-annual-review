@@ -64,3 +64,5 @@
 ## Live annual data
 
 The private Sites deployment now uses an authenticated same-origin runtime. See LIVE-INTEGRATION.md for source layout, build, data rules, privacy boundaries and the backend checklist. DataSage retains an explicit demo configuration.
+
+切换测试用户时，使用服务端 Secret 配置，不硬编码身份。私人快照与本地播报的可复用生成命令见 `LIVE-INTEGRATION.md` 的“切换联调用户与私人快照”章节。

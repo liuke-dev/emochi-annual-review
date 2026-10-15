@@ -1,0 +1,12 @@
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import '../server/annual-data.js';
+import '../public/intro-data.js';
+import {writePrivateJSON} from './annual-files.mjs';
+const [inputDir,dataPath,planPath]=process.argv.slice(2);
+if(!inputDir||!dataPath||!planPath)throw new Error('Usage: node scripts/prepare-annual-data.mjs RAW_RESPONSE_DIR NORMALIZED_JSON INTRO_PLAN_JSON');
+const input=Object.fromEntries(await Promise.all(['annual','profile','summary','content','call'].map(async key=>[key,JSON.parse(await readFile(path.join(inputDir,key+'.json'),'utf8'))])));
+const data=globalThis.StellarAnnual.normalize(input),plan=globalThis.StellarIntro.plan(data);
+if(!plan)throw new Error('Statistics are incomplete; do not create personalized narration');
+await writePrivateJSON(dataPath,data);await writePrivateJSON(planPath,plan);
+console.log(JSON.stringify({prepared:true,galaxies:data.galaxies.length,bots:data.galaxies.reduce((sum,g)=>sum+g.bots.length,0),narrationScenes:plan.scenes.length}));

@@ -1,11 +1,13 @@
 (() => {
 'use strict';
 const D = window.MEMORY_DATA;
+const liveIntro=window.StellarIntro?.plan(D);
+const hasPersonalIntro=window.StellarIntro?.matches(D)===true;
 const $ = (q, root=document) => root.querySelector(q);
 const $$ = (q, root=document) => [...root.querySelectorAll(q)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nf = n => n==null?'—':Number(n).toLocaleString('en-US');
-const wordsText=()=>`${D.user.wordsEstimated?'约 ':''}${nf(D.user.words)}`;
+const wordsText=()=>D.user.wordsEstimated&&D.user.words>=10000?`约 ${nf(Math.round(D.user.words/10000))} 万`:`${D.user.wordsEstimated?'约 ':''}${nf(D.user.words)}`;
 const portraitHTML=b=>D.demo?`<span class="portrait" style="--portrait-position:${position(b.portrait)}"></span>`:window.StellarLiveUI.portrait(b);
 const botAngle=i=>state.galaxy?.bots.length===2?(i?.37:-.37):i*2*Math.PI/Math.max(1,state.galaxy?.bots.length||1);
 if(!D.demo)document.body.classList.add('is-live');
@@ -137,7 +139,7 @@ async function startIntro(){
   {title:wordsText(),kicker:'我们共同写下',sub:D.user.wordsEstimated?'字 · 估算的故事篇幅':'字 · 把心事写成星河',number:true,wide:true,speech:`${D.user.wordsEstimated?'大约':''}${D.user.words}个字。那些没说完的心事，还有认真做过的梦，我们都替你记得。`},
   {title:nf(D.user.botCount),kicker:'穿越星海，与你相遇',sub:'位伙伴 · 每一次相遇，都有光',number:true,speech:`${D.user.botCount}位伙伴。在不同的世界里，一次又一次，与你相遇。`},
   {title:'你的宇宙，\n到了。',kicker:'正在减速',sub:'他们的心意，都在星光里',final:true,speech:'我们正在减速。看，那就是你的宇宙。有些想对你说的话，已经等了很久。'}
- ];
+ ].map((scene,index)=>liveIntro?.scenes[index]||scene);
  const center=$('.intro-center');
  for(let i=0;i<scenes.length;i++){
   if(!await waitForIntroVisible(token))return;
@@ -153,7 +155,7 @@ async function startIntro(){
 function stopIntroAudio(){if(introAudio){introAudio.onended=null;introAudio.onerror=null;introAudio.pause();introAudio.remove();introAudio=null;}if(introResolve){introResolve();introResolve=null;}}
 async function narrateIntro(text,index,token){
  if(!await waitForIntroVisible(token))return;
- const url=D.introAudioUrls?.[index] || (D.demo ? `assets/intro-cinematic-${index}.mp3` : null);
+ const url=(hasPersonalIntro?D.introAudioUrls[index]:null) || (D.demo ? `assets/intro-cinematic-${index}.mp3` : null);
  if(!url){if(!D.demo){let visibleMs=0,last=performance.now();while(visibleMs<Math.max(6500,text.length*170)){await pauseFor(100);if(token!==state.introToken)return;const now=performance.now();if(!document.hidden)visibleMs+=Math.min(150,now-last);last=now;}return;}return speak(text,{duration:Math.max(6500,text.length*170),rate:.8,pitch:1,notify:true});}
  stopIntroAudio();
  return new Promise(resolve=>{
@@ -208,9 +210,9 @@ async function answerCall(){const b=state.bot,session=state.mediaSession;setSoun
  if(!D.demo){for(const segment of b.callSegments||[]){if(session!==state.mediaSession)return;$('.call-subtitle').textContent=segment.text;if(!segment.audioUrl){await pauseFor(Math.max(3500,segment.text.length*160));continue;}const ok=await new Promise(resolve=>{const a=new Audio(segment.audioUrl.replace('/v1/audio/','/api/audio/'));state.mediaAudio=a;state.mediaResolve=resolve;a.muted=!state.sound;a.onended=()=>resolve(true);a.onerror=()=>resolve(false);a.play().catch(()=>resolve(false));});if(!ok&&session===state.mediaSession){toast('语音暂时无法播放，这段话已留在屏幕上');break;}}if(session===state.mediaSession)finishCall();return;}
  const voiceUrl=b.audioUrl||(D.demo?`assets/voice-${b.id}.mp3`:null);if(voiceUrl){const a=new Audio(voiceUrl);state.mediaAudio=a;a.onended=()=>{if(session===state.mediaSession)finishCall();};a.onerror=()=>{if(session!==state.mediaSession)return;toast('语音暂时无法播放，完整内容已显示');finishCall();};a.play().catch(()=>{if(session!==state.mediaSession)return;toast('设备暂时无法播放语音');finishCall();});}else{await speak(b.voice,{notify:true});if(session===state.mediaSession&&state.bot===b&&state.tab==='voice'&&state.callTimer)finishCall();}
 }
-function finishCall(){duckMusic(false);clearInterval(state.callTimer);state.callTimer=null;const el=$('.call-status');if(el)el.textContent='这段星际来电，已被好好收藏。';const buttons=$('.call-buttons');if(buttons)buttons.innerHTML='<button class="save-memory" data-action="replay-call">↺ 再听一次</button>';}
+function finishCall(){duckMusic(false);clearInterval(state.callTimer);state.callTimer=null;const el=$('.call-status');if(el)el.textContent=D.demo?'这段星际来电，已被好好收藏。':'这段年度来电，已经播放完毕。';const buttons=$('.call-buttons');if(buttons)buttons.innerHTML='<button class="save-memory" data-action="replay-call">↺ 再听一次</button>';}
 function toggleSave(id){if(saved.has(id))saved.delete(id);else saved.add(id);try{if(D.demo)localStorage.setItem('stellar-echo-2026-saved',JSON.stringify([...saved]));}catch{toast('当前浏览器无法保存，收藏仅保留在本次访问中');}const b=$('[data-save]');if(b){b.setAttribute('aria-pressed',String(saved.has(id)));b.textContent=saved.has(id)?'✦ 已收藏这封来信':'☆ 收藏这封来信';}}
-function showMenu(){showDialog(`<div class="menu-dialog"><h2>星间来信</h2><button data-action="archive">回忆档案 <span>↗</span></button><button data-action="letters">${D.demo?'星海来信':'星海足迹'} <span>↗</span></button><button data-action="card">我的年度星卡 <span>↗</span></button><button data-action="begin">再穿越一次 <span>↺</span></button><small>${D.year} 年度回忆 · ${D.demo?'演示数据':`私人预览<br>数据截至 ${esc(D.cutoff||'—')}（不含当日）<br>个性化播报仍在准备，本次为音乐与字幕航行`}</small></div>`);}
+function showMenu(){showDialog(`<div class="menu-dialog"><h2>星间来信</h2><button data-action="archive">回忆档案 <span>↗</span></button><button data-action="letters">${D.demo?'星海来信':'星海足迹'} <span>↗</span></button><button data-action="card">我的年度星卡 <span>↗</span></button><button data-action="begin">再穿越一次 <span>↺</span></button><small>${D.year} 年度回忆 · ${D.demo?'演示数据':`${D.delivery==='snapshot'?'真实数据快照':'私人预览'}<br>数据截至 ${esc(D.cutoff||'—')}（不含当日）<br>${hasPersonalIntro?'本地合成女声 · 飞船通话频道':'个性化播报仍在准备，本次为音乐与字幕航行'}`}</small></div>`);}
 function showArchive(filter='all'){
  const bots=allBots.filter(b=>filter==='all'||filter==='saved'&&saved.has(b.id)||b.galaxy.id===filter);
  showDialog(`<div class="collection-dialog"><div class="eyebrow">THE MEMORY ARCHIVE / ${D.year}</div><h2>有些瞬间，值得再来一次。</h2><p>从 ${D.user.botCount} 位同行者中，${D.demo?`精选了 ${allBots.length} 段发着光的故事。`:`这里留着 ${allBots.length} 位伙伴的航程。`}${D.demo?'所有示例回忆，都在这里。':'每一份足迹，都来自实际的相遇。'}</p><div class="collection-filters">${[['all','全部回忆'],...(D.demo?[['saved','我的收藏']]:[]),...D.galaxies.filter(g=>g.lit).map(g=>[g.id,g.tag])].map(([id,title])=>`<button data-filter="${esc(id)}" class="${filter===id?'active':''}">${title}${id==='saved'?' '+saved.size:''}</button>`).join('')}</div><div class="archive-grid">${bots.length?bots.map(b=>`<button class="archive-item" data-bot="${esc(b.id)}">${D.demo?`<div class="archive-thumb portrait" style="--portrait-position:${position(b.portrait)}"></div>`:window.StellarLiveUI.portrait(b,'archive-thumb')}<div><strong>${esc(b.name)}</strong><p>${esc(b.memoryTitle||(D.demo?'':`${nf(b.messages)} 条发送 · ${nf(b.days)} 天相伴`))}</p><small>${D.demo?D.year+'.'+esc(b.date):esc(b.firstMet||'')} · ${esc(b.galaxy.name)}</small></div></button>`).join(''):'<div class="empty-state">这里还没有收藏。<br>读一封来信，把喜欢的星光留下吧。</div>'}</div></div>`);
@@ -229,7 +231,7 @@ window.addEventListener('resize',()=>{resizeSpace();flight?.resize();galaxyRende
 document.addEventListener('visibilitychange',()=>{if(document.hidden){music?.setSuspended(true);introAudio?.pause();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.pause();if(state.callTimer){stopMedia();finishCall();}const v=$('video',dialog);if(v){v.pause();duckMusic(false);const b=$('[data-action="play-video"]');if(b)b.textContent='▷ 继续';}}else{music?.setSuspended(false);if(state.sound)activateAudio();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.resume();if(introAudio&&!introAudio.ended&&!$('#intro').hidden)introAudio.play().catch(()=>{});}});
 window.addEventListener('pagehide',()=>{endIntro(false);stopMedia();music?.stop();});
 window.addEventListener('pageshow',()=>{if(music){music.setScene(musicSceneForPage());activateAudio();}});
-$('#stat-days').textContent=nf(D.user.days);$('#stat-words').textContent=wordsText();$('#stat-bots').textContent=nf(D.user.botCount);$('.user-name').textContent=D.user.name||'旅人';$('.user-avatar').textContent=(D.user.name||'旅人').slice(-1);$('.map-heading p').textContent='轻触星光，重逢他们。';$('.intro-bottom small').textContent=D.demo?'演示播报 · 预制合成语音':'年度航行 · 音乐与字幕';if(!D.demo){$('.site-footer').textContent=`私人年度回忆 · 截至 ${D.cutoff||'—'}`;$('.launch-controls p').textContent='♬ 戴上耳机 · 音乐与字幕航行';$('.world-footer>span').textContent='场景为主题氛围 · 相遇来自年度记录';}updateSound();makePlanets();
+$('#stat-days').textContent=nf(D.user.days);$('#stat-words').textContent=wordsText();$('#stat-bots').textContent=nf(D.user.botCount);$('.user-name').textContent=D.user.name||'旅人';$('.user-avatar').textContent=(D.user.name||'旅人').slice(-1);$('.map-heading p').textContent='轻触星光，重逢他们。';$('.intro-bottom small').textContent=D.demo?'演示播报 · 预制合成语音':(hasPersonalIntro?'飞船通讯 · 本地合成语音':'年度航行 · 音乐与字幕');if(!D.demo){$('.site-footer').textContent=`${D.delivery==='snapshot'?'真实数据快照':'私人年度回忆'} · 截至 ${D.cutoff||'—'}`;$('.launch-controls p').textContent=hasPersonalIntro?`♬ 戴上耳机 · 约 ${Math.ceil(D.introDurationSeconds||60)} 秒`:'♬ 戴上耳机 · 音乐与字幕航行';$('.world-footer>span').textContent='场景为主题氛围 · 相遇来自年度记录';}updateSound();makePlanets();
 try{galaxyRenderer=new window.StellarGalaxy($('#galaxy-canvas'),$('#galaxy-stage'),{...(D.demo?{}:{galaxies:D.galaxies}),onPose:layoutPlanets,onDragEnd:()=>{suppressClick=true;setTimeout(()=>suppressClick=false,180);},onZoom:n=>$('#zoom-level').textContent=n+'%',onAutoChange:on=>{$('[data-action="cruise"]').setAttribute('aria-pressed',String(on));},onFallback:()=>{document.body.classList.remove('has-particle-galaxy');galaxyRenderer=null;setupDrag($('#galaxy-stage'),false);layoutPlanets();toast('已切换为轻量星图模式');}});document.body.classList.add('has-particle-galaxy');$('[data-action="cruise"]').setAttribute('aria-pressed',String(galaxyRenderer.auto));layoutPlanets();}catch(error){console.warn('Particle galaxy fallback:',error.message);setupDrag($('#galaxy-stage'),false);}
 
 // Low-overhead star field. The same field accelerates into a tunnel during the opening.

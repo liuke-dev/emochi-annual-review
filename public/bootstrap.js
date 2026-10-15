@@ -1,12 +1,13 @@
 /* Fetch only the current private preview's normalized data. Never silently replace failed real data with demo data. */
 (async()=>{
  const overlay=document.createElement('section');overlay.className='data-gate';overlay.setAttribute('aria-live','polite');document.body.append(overlay);
- const mode=new URLSearchParams(location.search).get('demo')==='1'||window.STELLAR_MODE==='demo'?'demo':'live';
+ const mode=new URLSearchParams(location.search).get('demo')==='1'||window.STELLAR_MODE==='demo'?'demo':window.STELLAR_MODE==='snapshot'?'snapshot':'live';
  const script=src=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.append(s);});
  async function load(){
   overlay.innerHTML='<span class="gate-star">✦</span><h1>星光正在归航</h1><p>正在收拢属于你的这一年</p>';
   try{
    if(mode==='demo')await script('data.js');
+   else if(mode==='snapshot'){await script('snapshot.js');if(window.MEMORY_DATA?.demo!==false||!Array.isArray(window.MEMORY_DATA.galaxies))throw new Error('invalid_response');}
    else{
     const r=await fetch('/api/annual-data',{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(35000)});
     let body;try{body=await r.json();}catch{throw new Error('unavailable');}
