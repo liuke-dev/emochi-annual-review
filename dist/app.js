@@ -12,20 +12,21 @@ let saved;
 try { saved = new Set(JSON.parse(localStorage.getItem('stellar-echo-2026-saved') || '[]')); } catch { saved = new Set(); }
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let panorama=null,galaxyRenderer=null,flight=null;
-let music=null,musicFade=null,musicDucked=false,toastTimer,introTimer,speechTimer,speechCancel,introAudio=null,introResolve=null;
+let music=null,musicUnavailableNotice=false,musicDucked=false,toastTimer,introTimer,speechTimer,speechCancel,introAudio=null,introResolve=null;
 const phoneIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3l-5-2-2 2a14 14 0 0 1-7-7l2-2-2-5Z"/></svg>';
 const soundIcon = on => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/>${on?'<path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>':'<path d="m16 9 5 6m0-6-5 6"/>'}</svg>`;
 function toast(message) { clearTimeout(toastTimer); $('#toast').textContent=message; $('#toast').classList.add('show'); toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3400); }
 function waveform(){return Array.from({length:21},(_,i)=>`<i style="--h:${5+Math.sin(i*.7)**2*19}px;--d:${i*.08}s"></i>`).join('');}
 function updateSound(){const b=$('#sound-button'); b.innerHTML=soundIcon(state.sound); b.setAttribute('aria-label',state.sound?'关闭声音':'开启声音'); b.title=state.sound?'关闭声音':'开启声音'; b.setAttribute('aria-pressed',String(state.sound));}
-function fadeMusic(target){
- if(!music)return;cancelAnimationFrame(musicFade);const start=music.volume,t0=performance.now();const tick=t=>{const k=Math.max(0,Math.min(1,(t-t0)/650));music.volume=Math.max(0,Math.min(1,start+(target-start)*k));if(k<1)musicFade=requestAnimationFrame(tick);else if(target===0&&!state.sound)music.pause();};musicFade=requestAnimationFrame(tick);
+function musicSceneForPage(){return document.body.classList.contains('is-intro')?'intro':state.page==='world'?(state.galaxy?.id||'galaxy'):'galaxy';}
+function ensureMusic(){
+ if(typeof window.StellarMusic!=='function'){if(state.sound&&!musicUnavailableNotice){musicUnavailableNotice=true;toast('背景音乐暂未加载，其他回忆仍可继续体验');}return null;}
+ if(!music){music=new window.StellarMusic({onError:issue=>toast(issue.message||'背景音乐暂时无法播放，其他回忆仍可继续体验')});music.setScene(musicSceneForPage());music.setDucked(musicDucked);music.setSuspended(document.hidden);}
+ return music;
 }
-function activateAudio(){
- if(!music){music=new Audio('assets/stellar-ambient.mp3');music.id='background-music';music.setAttribute('aria-hidden','true');document.body.appendChild(music);music.loop=true;music.volume=0;music.preload='none';music.addEventListener('error',()=>toast('背景音乐暂时无法加载，其他回忆仍可继续体验'));}
- if(state.sound&&!document.hidden){music.play().then(()=>{if(!state.sound||document.hidden){cancelAnimationFrame(musicFade);music.volume=0;music.pause();return;}fadeMusic(musicDucked?.14:.55);}).catch(()=>{if(state.sound&&!document.hidden)toast('轻触声音按钮，即可播放星海背景音乐');});}else fadeMusic(0);
-}
-function duckMusic(duck){musicDucked=duck;if(state.sound&&music)fadeMusic(duck?.14:.55);}
+function setMusicScene(scene,options){ensureMusic()?.setScene(scene,options);}
+function activateAudio(){const player=ensureMusic();if(!player)return;player.setSuspended(document.hidden);player.setDucked(musicDucked);player.setEnabled(state.sound);}
+function duckMusic(duck){musicDucked=duck;music?.setDucked(duck);}
 
 function cancelSpeech(){clearTimeout(speechTimer);if(speechCancel){speechCancel();speechCancel=null;}if('speechSynthesis'in window)window.speechSynthesis.cancel();}
 function speak(text, options={}){
@@ -71,8 +72,8 @@ function layoutPlanets(){
 }
 
 function setView(view){state.view=view;document.body.classList.toggle('is-flat',view==='flat');galaxyRenderer?.setFlat(view==='flat');galaxyRenderer?.resize();$$('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));layoutPlanets();state.worldAngle=0;layoutWorld();}
-function applyPage(page){
- state.page=page;document.body.classList.remove('is-cover','is-map','is-world');document.body.classList.add('is-'+page);$('#universe').hidden=page==='world';$('#world').hidden=page!=='world';galaxyRenderer?.setActive(page!=='world');if(page!=='world'){galaxyRenderer?.resize();if(state.universePose&&galaxyRenderer){galaxyRenderer.setPose(state.universePose);state.universePose=null;}}layoutPlanets();
+function applyPage(page,{selectMusic=true}={}){
+ state.page=page;document.body.classList.remove('is-cover','is-map','is-world');document.body.classList.add('is-'+page);$('#universe').hidden=page==='world';$('#world').hidden=page!=='world';galaxyRenderer?.setActive(page!=='world');if(page!=='world'){galaxyRenderer?.resize();if(state.universePose&&galaxyRenderer){galaxyRenderer.setPose(state.universePose);state.universePose=null;}}layoutPlanets();if(selectMusic&&!document.body.classList.contains('is-intro'))setMusicScene(page==='world'?(state.galaxy?.id||'galaxy'):'galaxy');
 }
 async function travel(fn,label){if(state.transition)return;state.transition=true;const overlay=$('#travel-overlay');$('span',overlay).textContent=label||'正在穿越星际…';overlay.classList.add('active');await new Promise(r=>setTimeout(r,reduced?0:380));fn();window.scrollTo({top:0,behavior:'instant'});await new Promise(r=>setTimeout(r,reduced?0:150));overlay.classList.remove('active');state.transition=false;}
 function toMap(){endIntro(false);closeDialog();travel(()=>{applyPage('map');history.replaceState(null,'','#universe');},'回到你的年度宇宙');}
@@ -119,9 +120,9 @@ function prepareArrival(durationMs=9000){
  if(flight)flight.beginLanding(durationMs);
 }
 async function startIntro(){
- closeDialog();endIntro(false);state.introToken++;const token=state.introToken;state.universePose=null;setView('orbit');applyPage('map');
+ closeDialog();endIntro(false);state.introToken++;const token=state.introToken;state.universePose=null;setView('orbit');applyPage('map',{selectMusic:false});
  document.body.classList.remove('arrived');document.body.classList.add('is-intro');$('#intro').hidden=false;$('#intro').dataset.phase='flight';
- galaxyRenderer?.setActive(false);setSound(true);duckMusic(true);window.scrollTo({top:0,behavior:'instant'});
+ galaxyRenderer?.setActive(false);setMusicScene('intro',{restart:true});setSound(true);duckMusic(true);window.scrollTo({top:0,behavior:'instant'});
  try{
   if(!flight)flight=new window.StellarFlight($('#flight-canvas'),{onLandingProgress:p=>{if(!document.body.classList.contains('is-intro'))return;const e=p*p*(3-2*p);if(galaxyRenderer){galaxyRenderer.distance=6.6+3.9*e;galaxyRenderer.setIgnition(Math.max(0,Math.min(1,(p-.4)/.6)));}}});
   flight.start();document.body.classList.add('has-flight');
@@ -166,7 +167,7 @@ async function finishArrival(token){
  while(flight&&flight.landingProgress<1){await pauseFor(100);if(token!==state.introToken)return;}
  if(!flight)await pauseFor(reduced?100:700);
  if(token!==state.introToken)return;
- document.body.classList.add('arrived');endIntro(false);applyPage('map');galaxyRenderer?.setAuto(!reduced);history.replaceState(null,'','#universe');
+ document.body.classList.add('arrived');endIntro(false);applyPage('map',{selectMusic:false});setMusicScene('galaxy',{restart:true});galaxyRenderer?.setAuto(!reduced);history.replaceState(null,'','#universe');
 }
 async function skipIntro(){
  if(!document.body.classList.contains('is-intro')||$('#intro').dataset.phase==='skipping')return;
@@ -215,11 +216,12 @@ async function downloadCard(){const c=document.createElement('canvas');c.width=9
 async function savePhoto(){const b=state.bot;if(b.imageUrl){try{const r=await fetch(b.imageUrl);if(!r.ok)throw new Error();downloadBlob(await r.blob(),`${b.name}-${b.memoryTitle}.jpg`);toast('回忆图片已保存');}catch{toast('图片暂时无法下载，请稍后重试');}return;}const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=700;c.height=1000;const x=c.getContext('2d');x.fillStyle='#e9e1ed';x.fillRect(0,0,700,1000);const sw=img.width/4;x.drawImage(img,b.galaxy.bots[0].portrait*sw,0,sw,img.height,24,24,652,860);x.textAlign='center';x.fillStyle='#64556f';x.font='22px serif';x.fillText(b.memoryTitle,350,930);x.font='14px sans-serif';x.fillText(`${D.year}.${b.date} · AI 场景示意`,350,966);c.toBlob(blob=>{if(blob){downloadBlob(blob,`${b.name}-${b.memoryTitle}.png`);toast('已把这片回忆保存为图片');}});};img.onerror=()=>toast('回忆图片暂时无法载入');img.src='assets/worlds.webp';}
 const actions={home:toHome,map:toMap,begin:startIntro,skip:skipIntro,more:showMenu,'intro-sound':()=>setSound(!state.sound),archive:()=>showArchive(),letters:showLetters,card:showCard,'zoom-in':()=>galaxyRenderer?.zoomBy(.85),'zoom-out':()=>galaxyRenderer?.zoomBy(1.17),cruise:()=>{if(galaxyRenderer)galaxyRenderer.setAuto(!galaxyRenderer.auto);},reset:()=>{galaxyRenderer?.reset();state.angle=state.tilt=0;layoutPlanets();toast('已回到最初的星图视角');},'download-card':downloadCard,'save-photo':savePhoto,answer:answerCall,decline:()=>{stopMedia();$('.call-status').textContent='没关系，这段话随时都在。';$('.call-description').textContent='你准备好了，我们再慢慢说。';$('.call-buttons').innerHTML='<button class="save-memory" data-action="replay-call">重新接通</button>';},hangup:()=>{stopMedia();finishCall();},'replay-call':()=>renderTab('voice'),'video-sound':()=>setSound(!state.sound),'play-video':()=>{const v=$('video',dialog),b=$('[data-action="play-video"]',dialog);if(!v)return;if(v.paused){if(v.ended)v.currentTime=0;v.play().then(()=>{b.textContent='Ⅱ 暂停';if(state.bot?.videoUrl)duckMusic(true);}).catch(()=>toast('短片暂时无法播放，请稍后重试'));}else{v.pause();duckMusic(false);b.textContent='▷ 继续';}}};
 document.addEventListener('click',e=>{if(suppressClick)return;const target=e.target.closest('button');if(!target)return;if(target.dataset.action)actions[target.dataset.action]?.();else if(target.dataset.view)setView(target.dataset.view);else if(target.dataset.galaxy)openGalaxy(target.dataset.galaxy);else if(target.dataset.focusBot!==undefined){state.worldAngle=Number(target.dataset.focusBot)?.37:-.37;layoutWorld();}else if(target.dataset.bot)openBot(target.dataset.bot);else if(target.dataset.tab)renderTab(target.dataset.tab);else if(target.dataset.save)toggleSave(target.dataset.save);else if(target.dataset.filter)showArchive(target.dataset.filter);});
-$('#sound-button').addEventListener('click',()=>{setSound(!state.sound);toast(state.sound?'星海回声 · 氛围音乐已开启':'声音已关闭');});$('.dialog-close').addEventListener('click',closeDialog);dialog.addEventListener('cancel',()=>stopMedia());dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDialog();}});
+$('#sound-button').addEventListener('click',()=>{setSound(!state.sound);toast(state.sound?'背景音乐已开启':'声音已关闭');});$('.dialog-close').addEventListener('click',closeDialog);dialog.addEventListener('cancel',()=>stopMedia());dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDialog();}});
 document.addEventListener('keydown',e=>{const t=e.target.closest('[data-tab]');if(t&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const tabs=$$('[data-tab]'),i=tabs.indexOf(t),n=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];renderTab(n.dataset.tab);n.focus();}if(e.key==='Escape'&&document.body.classList.contains('is-intro'))skipIntro();});
 window.addEventListener('resize',()=>{resizeSpace();flight?.resize();galaxyRenderer?.resize();layoutPlanets();layoutWorld();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(musicFade);music?.pause();introAudio?.pause();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.pause();if(state.callTimer){stopMedia();finishCall();}const v=$('video',dialog);if(v){v.pause();duckMusic(false);const b=$('[data-action="play-video"]');if(b)b.textContent='▷ 继续';}}else{if(state.sound)activateAudio();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.resume();if(introAudio&&!introAudio.ended&&!$('#intro').hidden)introAudio.play().catch(()=>{});}});
-window.addEventListener('pagehide',()=>{endIntro(false);stopMedia();cancelAnimationFrame(musicFade);music?.pause();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){music?.setSuspended(true);introAudio?.pause();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.pause();if(state.callTimer){stopMedia();finishCall();}const v=$('video',dialog);if(v){v.pause();duckMusic(false);const b=$('[data-action="play-video"]');if(b)b.textContent='▷ 继续';}}else{music?.setSuspended(false);if(state.sound)activateAudio();if(document.body.classList.contains('is-intro'))window.speechSynthesis?.resume();if(introAudio&&!introAudio.ended&&!$('#intro').hidden)introAudio.play().catch(()=>{});}});
+window.addEventListener('pagehide',()=>{endIntro(false);stopMedia();music?.stop();});
+window.addEventListener('pageshow',()=>{if(music){music.setScene(musicSceneForPage());activateAudio();}});
 $('#stat-days').textContent=nf(D.user.days);$('#stat-words').textContent=nf(D.user.words);$('#stat-bots').textContent=nf(D.user.botCount);$('.user-name').textContent=D.user.name;$('.user-avatar').textContent=D.user.name.slice(-1);$('.map-heading p').textContent='轻触星光，重逢他们。';$('.intro-bottom small').textContent=D.demo?'演示播报 · 预制合成语音':'年度航行播报';updateSound();makePlanets();
 try{galaxyRenderer=new window.StellarGalaxy($('#galaxy-canvas'),$('#galaxy-stage'),{onPose:layoutPlanets,onDragEnd:()=>{suppressClick=true;setTimeout(()=>suppressClick=false,180);},onZoom:n=>$('#zoom-level').textContent=n+'%',onAutoChange:on=>{$('[data-action="cruise"]').setAttribute('aria-pressed',String(on));},onFallback:()=>{document.body.classList.remove('has-particle-galaxy');galaxyRenderer=null;setupDrag($('#galaxy-stage'),false);layoutPlanets();toast('已切换为轻量星图模式');}});document.body.classList.add('has-particle-galaxy');$('[data-action="cruise"]').setAttribute('aria-pressed',String(galaxyRenderer.auto));layoutPlanets();}catch(error){console.warn('Particle galaxy fallback:',error.message);setupDrag($('#galaxy-stage'),false);}
 

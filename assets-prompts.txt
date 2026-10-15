@@ -51,3 +51,16 @@ Four independent images were generated with built-in image_gen.imagegen as 2:1 f
 2026-10-15 自然女声与离子版
 新版语音：Microsoft Edge公开神经语音 zh-CN-XiaoxiaoNeural，通过公开edge-tts项目实际生成，rate -10%、pitch -6Hz；78%自然原声与22%轻无线电染色，数字前后留0.6/0.9秒。未使用旧Tingting声音再次滤波，也未使用真人声音克隆。5段45.09秒，约545KB。生成记录位于本地work/voice-v4/report.json。
 新画面：原创着色器离子尾迹、弧线与粒子，巡航0.92单位/秒；蓝青→玫瑰薰衣草→冰青→紫琥珀→暖金淡紫。每幕1800ms平滑变色，不重置空间运动。
+
+
+2026-10-15 用户提供音乐与场景配乐版
+来源：用户提供的 the_mountain.mp3、ambient-space 1.mp3、ambient-space 2.mp3；不是本轮生成的音乐。上述旧版原创配乐记录保留为历史来源，stellar-ambient.mp3 当前不再默认播放。
+原始文件保持不变；运行时片段另行导出到 dist/assets/music/，44.1kHz立体声、160kbps MP3。intro/galaxy保留选定起点之后的完整尾段；四个主题截取片段在最后0.18秒做淡出，不更改旋律或播放速度。
+intro.mp3：the_mountain.mp3，原文件0.000000–113.502031秒。
+galaxy.mp3：ambient-space 1.mp3，原文件63.000000–266.057125秒。
+romance.mp3：ambient-space 1.mp3，原文件183.000000–253.000000秒。
+fantasy.mp3：ambient-space 2.mp3，原文件0.000000–70.000000秒。
+dark.mp3：the_mountain.mp3，原文件45.000000–110.000000秒。
+scifi.mp3：ambient-space 2.mp3，原文件88.000000–158.000000秒。
+六段总约11.84MB，最大约4.07MB。片段时间、场景逻辑和验证边界见 MUSIC-CUES.md；本地导出溯源与波形对齐记录位于任务工作目录 work/music-v6/clip-provenance.json，响度记录位于 work/music-v6/output-loudness.json。
+播放器使用两个流媒体audio，场景切换1.1秒交叉渐变；播报与Bot有声媒体期间压低至基础音量的0.28倍。音乐原曲来源不等于原创配乐声明；当前音频均为用户指定素材的选段。
